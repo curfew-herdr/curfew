@@ -1,5 +1,5 @@
 // que's Changes view, in herdr: a clone of the shipped `changes` panel (its commit box kept),
-// drawn flat on the review pane's surface the way que draws it: `[ CHANGES ]` with `+a −d · n files`
+// drawn flat on the review pane's surface the way que draws it: `CHANGES` with `+a −d · n files`
 // in mono at the right, rows of glyph, path, a 5px attention dot while uncommitted, and `+a −d` in
 // the diff tones. It lists what que's does: the worktree against its base (the merge base of
 // origin's default branch and HEAD, to the working tree, untracked files included), the same
@@ -16,10 +16,17 @@ import { markFile, commentOnly } from "./comments.js";
 import { READ, STATUS as STATUS_ARGS, MAX_UNTRACKED, MAX_FILES, diffFrom, readStatus } from "./base.js";
 import { openDiff, shownDiff, diffKey, settle } from "./difftab.js";
 
+// que's --fg-secondary (#c9c9c9) lies between foreground and muted; the theme has no name for it.
+// The tone of a head's label.
+function secondary(t) {
+  const ch = (c, i) => parseInt(c.slice(1 + 2 * i, 3 + 2 * i), 16);
+  return "#" + [0, 1, 2].map((i) => Math.round(ch(t.foreground, i) * 0.55 + ch(t.muted, i) * 0.45).toString(16).padStart(2, "0")).join("");
+}
+
 const MONO = "Menlo";
 // que's glyph tones (diff.ts): added good, modified neutral, deleted bad, untracked attention.
 const GLYPH = (f, t) => (f.fresh ? ["?", t.blocked] : f.status === "A" ? ["A", t.done] : f.status === "D" || f.status === "U" ? [f.status, t.ansi9] : ["M", t.idle]);
-const label = (t, text) => div().font_family(MONO).text_size(10).font_medium().text_color(t.dim).child(`[ ${text} ]`);
+const label = (t, text) => div().font_family(MONO).text_size(10).font_medium().text_color(secondary(t)).child(text);
 
 function location() {
   const space = spaces().find((s) => s.active), f = focused();

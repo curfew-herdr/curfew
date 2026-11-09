@@ -516,7 +516,7 @@ export default class CurfewDiff extends View {
     ]);
   }
 
-  // que's Comments menu, under its button: a bracketed head, Dim, Show and Fold with their hints,
+  // que's Comments menu, under its button: a head, Dim, Show and Fold with their hints,
   // the current one on the active fill, a hairline, and the removed-comments checkbox.
   commentMenu(t) {
     const view = this.commentView(), lines = this.split.commentAdditions + this.split.commentDeletions;
@@ -529,7 +529,7 @@ export default class CurfewDiff extends View {
       .child(v_flex().id("rd-comment-menu").absolute().top(BAR_H - 4).right(8).w(280).p(4).gap(1)
         .bg(t.raised).border_1().border_color(t.input).rounded(4).shadow_md().font_family(MONO).text_size(12)
         .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
-        .child(div().px(10).pt(4).pb(6).text_size(10).font_medium().text_color(t.dim).child(`[ COMMENT CHANGES · ${M.plural(lines, "line").toUpperCase()} ]`))
+        .child(div().px(10).pt(4).pb(6).text_size(10).font_medium().text_color(mix(t.foreground, t.muted, 0.45)).child(`COMMENT CHANGES · ${M.plural(lines, "line").toUpperCase()}`))
         .children(MODES.map((m) => item(`rd-mode-${m.mode}`, m.label, m.hint, view.mode === m.mode, (cx) => this.setCommentView({ mode: m.mode }, cx))))
         .child(div().my(4).h(1).bg(t.border))
         .child(item("rd-keep-removed", `${view.keepRemoved ? "✓" : "  "} Always show removed comments`, "", false, (cx) => this.setCommentView({ keepRemoved: !view.keepRemoved }, cx))));

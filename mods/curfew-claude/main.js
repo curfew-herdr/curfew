@@ -8,6 +8,13 @@ import { h_flex, v_flex } from "gpui-base";
 import { theme, appHome, home, readTextFile } from "herdr";
 import * as fs from "fs/promises";
 
+// que's --fg-secondary (#c9c9c9) lies between foreground and muted; the theme has no name for it.
+// The tone of a head's label.
+function secondary(t) {
+  const ch = (c, i) => parseInt(c.slice(1 + 2 * i, 3 + 2 * i), 16);
+  return "#" + [0, 1, 2].map((i) => Math.round(ch(t.foreground, i) * 0.55 + ch(t.muted, i) * 0.45).toString(16).padStart(2, "0")).join("");
+}
+
 const MONO = "Menlo";
 const DIR = () => `${appHome()}/mods/curfew-claude`;
 const DATA = () => `${appHome()}/curfew`;
@@ -44,7 +51,7 @@ export default class CurfewClaude extends View {
       .child(div().flex_1().min_w(0).text_color(on ? t.foreground : t.muted).child(value));
     return v_flex().id("curfew-claude").size_full().bg(t.popover).px(14).py(12).gap(7)
       .font_family(MONO).text_size(11).text_color(t.foreground)
-      .child(div().text_size(10).font_medium().text_color(t.dim).child("[ CLAUDE LAUNCHER ]"))
+      .child(div().text_size(10).font_medium().text_color(secondary(t)).child("CLAUDE LAUNCHER"))
       .children(!f ? [div().text_color(t.dim).child("Reading…")] : [
         row("launcher", f.launcher ? `sh ${DIR()}/claude` : "missing", f.launcher),
         row("settings", `${DIR()}/settings.json`),

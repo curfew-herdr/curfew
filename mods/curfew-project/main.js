@@ -19,6 +19,13 @@ import { h_flex, v_flex } from "gpui-base";
 import { theme, props, run, closeOverlay, shared, setShared, home, nextCommand } from "herdr";
 import { removeWords } from "./words.mjs";
 
+// que's --fg-secondary (#c9c9c9) lies between foreground and muted; the theme has no name for it.
+// The tone of a head's label.
+function secondary(t) {
+  const ch = (c, i) => parseInt(c.slice(1 + 2 * i, 3 + 2 * i), 16);
+  return "#" + [0, 1, 2].map((i) => Math.round(ch(t.foreground, i) * 0.55 + ch(t.muted, i) * 0.45).toString(16).padStart(2, "0")).join("");
+}
+
 const ACTION = "curfew-project-action";
 const REMOVE = "curfew-remove-project";
 const STALE = 30_000; // the sidebar drops older requests, so they go when a new one is added
@@ -172,7 +179,7 @@ export default class CurfewProject extends View {
       .when(Boolean(w.outside), (el) => el.child(div().pt(2).text_size(12.5).text_color(t.muted).child(w.outside)));
     const card = v_flex().w_full().flex_none().bg(t.popover).border(1).border_color(t.input).rounded(2).px(20).pt(16).pb(16).text_size(13).text_color(t.foreground)
       .child(h_flex().h(18).flex_none().justify_between().items_center()
-        .child(div().font_family(MONO).text_size(10.5).text_color(t.dim).child("[ REMOVE PROJECT ]"))
+        .child(div().font_family(MONO).text_size(10.5).text_color(secondary(t)).child("REMOVE PROJECT"))
         .child(div().font_family(MONO).text_size(10.5).text_color(t.dim).child("esc")))
       .child(gap(12))
       .child(div().min_w(0).truncate().text_size(14).font_semibold().child(w.title))

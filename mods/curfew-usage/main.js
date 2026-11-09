@@ -5,14 +5,22 @@
 // Labels faint, numbers muted, both a step brighter under the pointer; a number takes the
 // attention tone at 80% and the bad tone at 100%; after each, the time until that window resets
 // (only at 100% when the block is too narrow for both). A window whose reset has passed is
-// dropped (que's rule): `—`, and `5h —  wk —` faint with no reading at all. A click opens que's
+// dropped (que's rule): `—`, and `5h —  wk —` faint with no reading at all. On a plan with no
+// 5-hour limit Claude Code sends no such window, and it reads `5h ∞`. A click opens que's
 // usage card: each window's reset clock and a meter, and when the reading was taken.
 // props.role: none (the chip), "card" (the popup). Opened with mod.open: a preview of the states.
 
 import { View, div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, appHome, readTextFile, watchFolder, openOverlay, props } from "herdr";
-import { WINDOWS, decodeUsage, fit, hhmm, level, percent, tooltipOf } from "./usage.mjs";
+import { WINDOWS, blank, decodeUsage, fit, hhmm, level, percent, tooltipOf, unlimited } from "./usage.mjs";
+
+// que's --fg-secondary (#c9c9c9) lies between foreground and muted; the theme has no name for it.
+// The tone of a head's label.
+function secondary(t) {
+  const ch = (c, i) => parseInt(c.slice(1 + 2 * i, 3 + 2 * i), 16);
+  return "#" + [0, 1, 2].map((i) => Math.round(ch(t.foreground, i) * 0.55 + ch(t.muted, i) * 0.45).toString(16).padStart(2, "0")).join("");
+}
 
 const MONO = "Menlo";
 const CHAR_PX = 6.7; // Menlo at 11px, a little over its advance
@@ -49,15 +57,15 @@ function card({ u, t, now }) {
     return v_flex().gap(4)
       .child(h_flex().items_center()
         .child(div().w(64).flex_none().text_color(t.dim).child(spec.long))
-        .child(div().flex_none().text_color(toneOf(w, t) ?? t.foreground).child(w ? `${pct}%` : "—"))
-        .child(h_flex().flex_1().min_w(0).justify_end().text_color(t.dim).child(w ? spec.resets(w, now) : "")))
+        .child(div().flex_none().text_color(toneOf(w, t) ?? t.foreground).child(w ? `${pct}%` : blank(u, spec)))
+        .child(h_flex().flex_1().min_w(0).justify_end().text_color(t.dim).child(w ? spec.resets(w, now) : unlimited(u, spec) ? "no limit" : "")))
       .child(h_flex().pl(64)
         .child(div().flex_1().h(2).bg(t.border)
           .child(div().h_full().w(`${Math.min(pct, 100)}%`).bg(toneOf(w, t) ?? t.muted))));
   };
   return v_flex().id("usage-card").size_full().bg(t.popover).pt(12).pb(10).px(14).gap(10)
     .font_family(MONO).text_size(11).text_color(t.dim)
-    .child(div().text_size(10).font_medium().child("[ CLAUDE USAGE ]"))
+    .child(div().text_size(10).font_medium().text_color(secondary(t)).child("CLAUDE USAGE"))
     .children(WINDOWS.map(line))
     .child(div().h(1).flex_none().bg(t.border))
     .child(div().child(u?.at ? `as of ${hhmm(u.at)}` : "no reading yet"));
@@ -130,11 +138,11 @@ export default class CurfewUsage extends View {
   }
 
   // The live reading, then every state from made-up readings, at the sidebar's narrowest width
-  // and at a strip's right end, and the card.
+  // and at a strip's right end, and the card with and without a 5-hour limit.
   preview(t, now) {
     const at = (h) => Math.round((now + h * 3_600_000) / 1000);
     const reading = (a, b, aAt = 2.17) => decodeUsage(JSON.stringify({ updatedAt: now - 6 * 60_000, rateLimits: {
-      five_hour: { used_percentage: a, resets_at: at(aAt) }, seven_day: { used_percentage: b, resets_at: at(76) } } }), now);
+      ...(a !== null && { five_hour: { used_percentage: a, resets_at: at(aAt) } }), seven_day: { used_percentage: b, resets_at: at(76) } } }), now);
     const states = [
       ["live usage.json", this.text ? decodeUsage(this.text, now) : null],
       ["no reading", null],
@@ -142,6 +150,7 @@ export default class CurfewUsage extends View {
       ["attention", reading(83, 61)],
       ["full", reading(100, 97)],
       ["5h reset passed", reading(99, 18, -0.1)],
+      ["no 5-hour limit", reading(null, 18)],
     ];
     const row = (name, u, width, i) =>
       h_flex().gap(12).items_center()
@@ -150,7 +159,8 @@ export default class CurfewUsage extends View {
           .child(chip({ id: `p${i}-${width}`, u, t, now, width, hovered: false, onHover: () => {}, onClick: () => {} })));
     return v_flex().id("preview").size_full().bg(t.background).p(16).gap(6)
       .children(states.flatMap(([name, u], i) => [row(name, u, 256, i), row(name, u, 150, i)]))
-      .child(div().w(CARD.width).h(CARD.height).mt(10).flex_none().border_1().border_color(t.input).rounded(6).overflow_hidden()
-        .child(card({ u: reading(83, 18), t, now })));
+      .child(h_flex().mt(10).gap(12).items_start().children([reading(83, 18), reading(null, 18)].map((u) =>
+        div().w(CARD.width).h(CARD.height).flex_none().border_1().border_color(t.input).rounded(6).overflow_hidden()
+          .child(card({ u, t, now })))));
   }
 }

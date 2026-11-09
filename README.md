@@ -16,11 +16,11 @@
 ## About
 
 Curfew turns herdr into a calm place to run coding agents in parallel. The sidebar lists your
-sessions and your projects, and a project's `+` starts a new task in its own worktree and
-branch, with Claude Code or any other agent herdr knows. The pane on the right follows each
-task: its pull requests and their checks, its changes, and its files. Click a file and its diff
-opens as a tab, with code comments dimmed or folded out of the way. Claude Code's 5-hour and
-weekly usage sits at the bottom of the sidebar.
+terminals, your projects and your agents, the ones waiting on you first, and a project's `+`
+starts a new task in its own worktree and branch, with Claude Code or any other agent herdr
+knows. The pane on the right follows each task: its pull requests and their checks, its
+changes, and its files. Click a file and its diff opens as a tab, with code comments dimmed or
+folded out of the way. Claude Code's 5-hour and weekly usage sits at the bottom of the sidebar.
 
 Choose your hours, or go quiet for an hour before a meeting. Your agents keep running, and the
 window becomes a dim board that shows only whether each one is working, waiting or done. You can

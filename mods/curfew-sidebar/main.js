@@ -1,6 +1,11 @@
 // que's sidebar, in herdr: projects (git repos) and their workspaces (spaces), drawn the way
-// que draws them. A row is a dot and a name; its word and its ⋯ come under the pointer. A repo's
-// worktree spaces sit under its head; spaces outside any repo are sessions.
+// que draws them. A row is a dot and a name; its word and its ⋯ come under the pointer. Three
+// sections, each under a full-width head bar with its count that folds as a project's head does
+// (remembered with those): TERMINALS, the spaces outside any repo (sessions), and PROJECTS, a head
+// per repo with its worktree spaces under it, scroll together; AGENTS is a block pinned under them,
+// a row per agent herdr knows (agents.mjs: named as the quiet board names them, the ones that need
+// input first), its project faint and its word, a click going to its space and tab and focusing
+// its pane; past 8 rows they scroll on their own.
 // props.role: "list" (default), "strip" (the 40px title strip: search), "foot" (settings).
 //
 // A project's + opens the + menu (mods/curfew-new-session, props kind "worktree"). Its Terminal
@@ -26,17 +31,22 @@
 
 import { View, div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { spaces, panes, run, openOverlay, closeOverlay, exec, hc, theme, watchFolder, pickFolder, props, knownAgents, appHome, home, readTextFile, shared, setShared, notify, nextCommand, window as appWindow } from "herdr";
+import { spaces, panes, agents, run, openOverlay, closeOverlay, exec, hc, theme, watchFolder, pickFolder, props, knownAgents, appHome, home, readTextFile, shared, setShared, notify, nextCommand, window as appWindow } from "herdr";
 import * as fs from "fs/promises";
 import { Failure, prepareWorkspace, randomName, worktreeRoot } from "./workspace.mjs";
 import { isClaude, nextTitles, paneTitle, cleanKept, runningName } from "./titles.mjs";
 import { planRemoval, recordProcesses, stopProcesses, deleteWorktrees } from "./remove.mjs";
+import { agentName, agentProject, agentWord, sortAgents } from "./agents.mjs";
 
 // que's row titles (titles.mjs): { titles: space -> the name its Claude session gave itself,
 // seen: terminal -> the name it showed last }, kept across restarts.
 const TITLES = "curfew-sidebar.titles";
 
 const MONO = "Menlo";
+// A section head's label: the bare name.
+const sectionLabel = (name) => name;
+// The agents block's rows before they scroll.
+const AGENT_ROWS = 8;
 const icon = (name, size = 14) => svg(`mods/curfew-sidebar/${name}.svg`).size(size).flex_none();
 
 // The + menu's requests for a new workspace: [{ id, at, repo, key, project, from, tab, argv }]
@@ -238,8 +248,9 @@ export default class QueSidebar extends View {
     if (next !== this.hover) { this.hover = next; cx.notify(); }
   }
 
-  fold(repo, cx) {
-    this.folded.has(repo) ? this.folded.delete(repo) : this.folded.add(repo);
+  // A project's head (by its repo's key) or a section's (`section:<name>`, which no key can be).
+  fold(key, cx) {
+    this.folded.has(key) ? this.folded.delete(key) : this.folded.add(key);
     localStorage.setItem("folded", JSON.stringify([...this.folded]));
     cx.notify();
   }
@@ -435,12 +446,13 @@ export default class QueSidebar extends View {
     });
   }
 
-  // Its row shows at once, under its project (unfolded), with the first name drawn.
+  // Its row shows at once, under its project (unfolded, and PROJECTS), with the first name
+  // drawn.
   start(r, cx) {
     const key = typeof r.key === "string" ? r.key : null;
     const job = { id: r.id, key, repo: r.repo, project: r.project || base(r.repo), from: r.from ?? null, name: randomName(), path: "", step: "preparing", error: "" };
     this.jobs.push(job);
-    if (key && this.folded.delete(key)) localStorage.setItem("folded", JSON.stringify([...this.folded]));
+    if ([key, "section:projects"].filter((k) => k && this.folded.delete(k)).length) localStorage.setItem("folded", JSON.stringify([...this.folded]));
     cx.spawn(async (cx) => this.make(job, r, cx));
   }
 
@@ -502,7 +514,7 @@ export default class QueSidebar extends View {
     cx.notify();
   }
 
-  // The Sessions +: herdr's + menu (Terminal, Start an agent), each choice a new session in the
+  // The Terminals +: herdr's + menu (Terminal, Start an agent), each choice a new session in the
   // home folder (mods/curfew-new-session).
   newSession() {
     openOverlay({ mod: "curfew-new-session", kind: "popup", width: 250, height: 360 });
@@ -528,10 +540,31 @@ export default class QueSidebar extends View {
     return div().flex_none().font_family(MONO).text_size(11).text_color(color).child(text);
   }
 
-  section(label, button, t) {
-    return h_flex().h(24).mt(8).px(8).flex_none().items_center()
-      .child(div().flex_1().font_family(MONO).text_size(10).font_medium().text_color(t.dim).child(`[ ${label} ]`))
-      .child(button);
+  // A section is open unless its head was folded.
+  opened(key) {
+    return !this.folded.has(`section:${key}`);
+  }
+
+  // A section's head, a bar the sidebar's full width: it folds as a project's does. Its label
+  // sits at the left; under the pointer it takes `hover` and a chevron comes in before the label
+  // in a 16px slot, moving it right. At its right, always, its count (`2 needs input · 5` when
+  // some of it is blocked), then its button, if any, which doesn't fold it. `rule`: a `border`
+  // line along its top; `top`: the room above that.
+  section(key, label, t, { count, blocked = 0, button = null, rule = true, top = 0 }) {
+    const id = `section-${key}`, hot = this.hover === id, open = this.opened(key);
+    return h_flex().id(id).h(30).mt(top).pl(14).pr(11).gap(6).flex_none().items_center()
+      .when(rule, (el) => el.border_t(1).border_color(t.border))
+      .when(hot, (el) => el.bg(t.hover))
+      .on_hover((on, cx) => this.hovered(id, on, cx))
+      .on_click((_e, cx) => this.fold(`section:${key}`, cx))
+      .when(hot, (el) => el.child(h_flex().w(16).flex_none().justify_center().text_color(t.muted)
+        .child(icon(open ? "chevron-down" : "chevron-right"))))
+      .child(div().flex_1().font_family(MONO).text_size(10).font_medium().text_color(between(t.foreground, t.muted, 0.45)).child(sectionLabel(label)))
+      .child(blocked > 0
+        ? h_flex().flex_none().font_family(MONO).text_size(11).text_color(t.dim)
+          .child(div().text_color(t.blocked).child(`${blocked} needs input`)).child(div().child(" · ")).child(String(count))
+        : this.mono(String(count), t.dim))
+      .when(Boolean(button), (el) => el.child(button));
   }
 
   // A project's head: it folds; under the pointer its + and ⋯ (the ⋯ not while it is being
@@ -539,7 +572,7 @@ export default class QueSidebar extends View {
   head(p, t) {
     const id = `head-${p.repo}`, hot = this.hover === id, open = !this.folded.has(p.repo), removing = this.removing.has(p.repo);
     const done = p.rows.filter((r) => r.s.status === "done" && !r.s.active).length;
-    return h_flex().id(id).h(26).mt(8).px(8).gap(6).flex_none().items_center().rounded(4)
+    return h_flex().id(id).h(26).mt(2).px(8).gap(6).flex_none().items_center().rounded(4)
       .when(hot, (el) => el.bg(t.hover))
       .tooltip(JSON.parse(p.repo)[1].replace(/\/\.git$/, ""))
       .on_hover((on, cx) => this.hovered(id, on, cx))
@@ -597,13 +630,17 @@ export default class QueSidebar extends View {
     if (r.changed || seenChanged) setShared(TITLES, { titles: r.titles, seen: r.seen });
   }
 
+  // que's row name: a space someone named keeps its name; else the name its Claude session gave
+  // itself (titles.mjs); else, for a session, the program running in it, as its tab says it
+  // (caffeinate, nvim; a shell names nothing); else the branch (a worktree's generated name);
+  // else herdr's name (a session's folder).
+  rowName({ s, g }, session, ps) {
+    return s.named ? s.name : this.titles[s.id] || (session && runningName(s, ps)) || (g?.branch ? g.branch : s.name);
+  }
+
   row({ s, g }, session, t, ps) {
     const id = `row-${s.id}`, hot = this.hover === id, bg = running(s, ps), look = statusLook(s, bg, t);
-    // que's row name: a space someone named keeps its name; else the name its Claude session gave
-    // itself (titles.mjs); else, for a session, the program running in it, as its tab says it
-    // (caffeinate, nvim; a shell names nothing); else the branch (a worktree's generated name);
-    // else herdr's name (a session's folder).
-    const name = s.named ? s.name : this.titles[s.id] || (session && runningName(s, ps)) || (g?.branch ? g.branch : s.name);
+    const name = this.rowName({ s, g }, session, ps);
     // The branch isn't on the row (que keeps it to the hover card): a worktree's generated name
     // means nothing next to its session's name. It shows in the row's tooltip instead, as a
     // session's folder does.
@@ -630,6 +667,39 @@ export default class QueSidebar extends View {
           .child("⋯")));
   }
 
+  // The AGENTS rows (agents.mjs): every agent herdr knows, the ones that need input first, each
+  // with its name, its space's project (from the git answers the list already has: none is asked
+  // here) and its space's row name.
+  agentRows(sp, ps) {
+    const space = new Map(sp.map((s) => [s.id, s]));
+    return sortAgents(agents()).map((a) => {
+      const s = space.get(a.space), g = s ? this.git[where(s, ps)] : undefined;
+      const named = Boolean(s?.tabs.find((c) => c.id === a.tab)?.named);
+      return { a, name: agentName(a, named), project: s ? agentProject(g, place(s, ps), s.machine ? null : home()) : "", space: s ? this.rowName({ s, g }, g === null, ps) : "" };
+    });
+  }
+
+  // An agent's row: its mark in the space rows' tones (statusLook, without a space's times), its
+  // name, its project faint (it gives way first when the row is narrow) and its word, always shown.
+  // A click shows its space and its tab and focuses its pane; the tooltip is its space's row name, when not its own.
+  agentRow({ a, name, project, space }, t) {
+    const id = `agent-${a.address}`, look = statusLook({ status: a.status, tabs: [] }, [], t);
+    return h_flex().id(id).h(26).px(8).gap(6).flex_none().items_center().rounded(4)
+      .when(this.hover === id, (el) => el.bg(t.hover))
+      .when(Boolean(space) && space !== name, (el) => el.tooltip(space))
+      .on_hover((on, cx) => this.hovered(id, on, cx))
+      .on_click(() => {
+        run("space.select", { id: a.space });
+        run("tab.select", { id: a.tab });
+        if (a.pane) run("pane.focus", { pane: a.pane });
+      })
+      .child(h_flex().size(16).flex_none().items_center().justify_center()
+        .child(look.mark ? workingMark(t.accent) : div().size(5).rounded_full().bg(look.dot)))
+      .child(div().min_w(0).flex_shrink(1).truncate().text_color(look.name).child(name))
+      .child(div().flex_1().min_w(0).truncate().text_color(t.dim).child(project))
+      .child(this.mono(agentWord(a.status), look.tone ?? t.dim));
+  }
+
   render(cx) {
     const t = theme();
     if (this.role === "strip") {
@@ -653,14 +723,25 @@ export default class QueSidebar extends View {
     this.settle(sp, ps);
     this.follow(sp, ps);
     const { sessions, projects } = this.group(sp, ps);
+    const listed = this.agentRows(sp, ps);
+    // The heads run edge to edge; the rows under them keep a 6px inset.
+    const rows = (children) => v_flex().flex_none().px(6).children(children);
+    const empty = (text) => div().px(8).py(6).text_size(12).text_color(t.dim).child(text);
 
+    // A folded section draws its head only. TERMINALS and PROJECTS scroll; the AGENTS block stays
+    // under them, on `background`, its rows scrolling on their own past AGENT_ROWS.
     return v_flex().id("curfew-sidebar").size_full().min_h(0).bg(t.chrome).text_size(13)
-      .child(v_flex().id("curfew-sidebar-list").flex_1().min_h(0).px(6).pb(8).overflow_y_scrollbar()
-        .child(this.section("SESSIONS", this.ghost("session-new", "plus", "New session: a terminal or an agent outside any project", t, () => this.newSession()), t))
-        .children(sessions.map((r) => this.row(r, true, t, ps)))
-        .child(this.section("PROJECTS", this.ghost("project-add", "folder-plus", "Add project: a git repository", t, (cx) => this.addProject(cx)), t))
-        .children([...projects.values()].flatMap((p) => [this.head(p, t), ...(this.folded.has(p.repo) ? [] : [...p.rows.map((r) => this.row(r, false, t, ps)), ...[...(p.jobs ?? []), ...(p.removals ?? [])].map((j) => this.jobRow(j, t))])]))
-        .when(projects.size === 0, (el) => el.child(div().px(8).py(6).text_size(12).text_color(t.dim).child("Add a git repository to start a workspace."))));
+      .child(v_flex().id("curfew-sidebar-list").flex_1().min_h(0).pb(8).overflow_y_scrollbar()
+        .child(this.section("terminals", "TERMINALS", t, { count: sessions.length, button: this.ghost("session-new", "plus", "New terminal: a shell or an agent outside any project", t, () => this.newSession()) }))
+        .when(this.opened("terminals"), (el) => el.child(rows(sessions.map((r) => this.row(r, true, t, ps)))))
+        .child(this.section("projects", "PROJECTS", t, { count: projects.size, top: 8, button: this.ghost("project-add", "folder-plus", "Add project: a git repository", t, (cx) => this.addProject(cx)) }))
+        .when(this.opened("projects"), (el) => el.child(rows(projects.size === 0
+          ? [empty("Add a git repository to start a workspace.")]
+          : [...projects.values()].flatMap((p) => [this.head(p, t), ...(this.folded.has(p.repo) ? [] : [...p.rows.map((r) => this.row(r, false, t, ps)), ...[...(p.jobs ?? []), ...(p.removals ?? [])].map((j) => this.jobRow(j, t))])])))))
+      .child(v_flex().flex_none().bg(t.background).border_t(1).border_color(t.input).pb(6)
+        .child(this.section("agents", "AGENTS", t, { count: listed.length, blocked: listed.filter((r) => r.a.status === "blocked").length, rule: false }))
+        .when(this.opened("agents"), (el) => el.child(v_flex().id("curfew-sidebar-agents").max_h(AGENT_ROWS * 26).px(6).overflow_y_scrollbar()
+          .children(listed.length === 0 ? [empty("No agents running.")] : listed.map((r) => this.agentRow(r, t))))));
   }
 
   // The list's groups: sessions (spaces outside any repo), and projects by their repo's key, each

@@ -1,6 +1,6 @@
 // The + menus of curfew's sidebar: herdr's + menu (Terminal, then "Start an agent" with the
 // installed agents, keys 1 to 9), adapted from herdr's shipped new-menu mod.
-// - No props, the Sessions +: each choice starts a new session, a space in the home folder
+// - No props, the Terminals +: each choice starts a new session, a space in the home folder
 //   outside any project.
 // - props { kind: "worktree", repo, key, space, project }, a project's +: a dim header naming the
 //   project, the same choices, then "Named worktree…" (herdr's worktree dialog, for a branch of your

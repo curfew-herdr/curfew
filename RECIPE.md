@@ -1,7 +1,7 @@
 # Curfew
 
 Run coding agents side by side, each in its own git worktree, and log off while they work: a
-near-black window with a sidebar of sessions and git projects, one 40 px tab row over
+near-black window with a sidebar of terminals, git projects and agents, one 40 px tab row over
 hairline-split terminals, and a review pane on the right that switches between the session's
 pull requests, its changes and its files. Diffs open as tabs in the middle with code comments
 dimmed or folded, the sidebar foot shows Claude Code's 5-hour and weekly usage, and quiet hours
@@ -20,11 +20,20 @@ Terminals are Menlo 13 px with `[6, 8]` padding; the mods' text is the system UI
 - **Sidebar**, 256 px (180 to 520), on `chrome`, not resizable by drag.
   - **Title strip**, 40 px, drags the window. At its right end (10 px in) a 22 px search
     button: a 16 px magnifier in `dim`, `foreground` on a `hover` square under the pointer.
-  - **The list**, 13 px text, 6 px side padding, scrolling:
-    - `[ SESSIONS ]`, a 24 px section head 8 px below what's above, Menlo 10 px medium `dim`,
-      with a 22 px `+` at its right. Under it, the spaces that aren't in any git repo.
-    - `[ PROJECTS ]` with a folder-plus button (Add project). Under it, per git repository: a
-      26 px head (8 px above it, 4 px radius) with a 16 px folder icon, the repo's name (12 px
+  - **The list**, 13 px text, scrolling: the TERMINALS and PROJECTS sections. Under it, outside
+    the scroll, the AGENTS block (below), so the agents stay in view however long the list gets.
+    - **A section head**, a 30 px bar the sidebar's full width (the rows under it keep a 6 px
+      inset), 14 px padding at the left and 11 px at the right, 6 px gaps, a 1 px `border` line
+      along its top: TERMINALS's at the top of the list, PROJECTS's 8 px below what's above; the
+      AGENTS head has none (its block's line is the rule). Its name at the
+      left in Menlo 10 px medium `#c9c9c9`; at its right, always, its count (of spaces, projects
+      or agents) in Menlo 11 px `dim`, then its button. It folds like a project's head
+      (remembered), and folded, everything under it goes. Under the pointer it takes `hover`
+      (square, no radius) and a 16 px chevron in `muted` (down when open, right when folded)
+      comes in before the name, moving it right.
+    - TERMINALS with a 22 px `+`. Under it, the spaces that aren't in any git repo.
+    - PROJECTS with a folder-plus button (Add project). Under it, per git repository: a
+      26 px head (2 px above it, 4 px radius) with a 16 px folder icon, the repo's name (12 px
       medium, `muted`); folded, its row count at the right in Menlo 11 px `dim`, preceded by
       `2 done ·` in `done` when its spaces finished unseen. Under the pointer the head takes
       `hover`, the folder becomes a chevron (down when open, right when folded), the name turns
@@ -46,6 +55,20 @@ Terminals are Menlo 13 px with `[6, 8]` padding; the mods' text is the system UI
       against its upstream, then `›_` when a program other than an agent or shell runs in
       it. The shown space's row is on `selected`, a hovered one on `hover`. Under the pointer
       the right side shows the status word instead (Menlo 11 px) and an 18 px `⋯`.
+  - **The AGENTS block**, pinned under the list on `background`, a 1 px `input` line along its
+    top and 6 px of padding at its bottom: the AGENTS head (no button; while agents need input
+    its count reads `2 needs input · 5`, `2 needs input` in `blocked`), then an agent row
+    (below) per agent herdr knows, 6 px in, at most 8 rows (208 px) before they scroll on their
+    own; with none, `No agents running.` (12 px, `dim`). Folded, only its head stays.
+    - **An agent row**, a row's size, padding, gaps and radius, on `hover` under the pointer:
+      the status column and the name's tone as a space's (below), then the agent's name as the
+      quiet board names it (its Claude Code session's name, else its tab's if someone named
+      the tab, else its program: `Claude Code`, `Codex`), then its space's project in `dim`
+      (the repo's name, else the folder's, `~` at home; blank until git has answered), which
+      gives way first when the row is narrow. At its right, always, its word in Menlo 11 px
+      `dim`: `needs input` (in `blocked`), `working`, `done` (no time), `idle`. Those that need
+      input come first, then working, done, idle, each in herdr's order. Its tooltip is its
+      space's row name, when that isn't the agent's own.
   - **The foot**, 66 px: the quiet-hours chip (a 30 px block), then a 36 px row: a gear
     (Settings) in a 36 px block and the usage readout filling the rest.
     - **Usage readout**, Menlo 11 px, right-aligned: `5h 42% · 2h 10m   wk 18% · 3d 4h`. Labels
@@ -53,7 +76,8 @@ Terminals are Menlo 13 px with `[6, 8]` padding; the mods' text is the system UI
       2 px radius); a number is `blocked` from 80% and `#ef2929` at 100%; the time to each
       reset in `dim`. When the block is too narrow, the times go first (a window at 100%
       keeps its own longest), then the numbers stand alone.
-      `5h — wk —` in `dim` before any reading; a window whose reset has passed shows `—`.
+      `5h — wk —` in `dim` before any reading; a window whose reset has passed shows `—`. On
+      a plan with no 5-hour limit Claude Code sends no such window and it reads `5h ∞`.
     - **Quiet chip**: `Quiet 30m 1h 2h` at the left (`Quiet` 12.5 px `muted`; the lengths
       Menlo 11 px, `1h` `muted`, the others `dim`), herdr's clock icon and when quiet next
       starts (`18:00`, `mon 18:00`, `off`) at the right in Menlo 11 px `dim`. While unlocked:
@@ -89,7 +113,8 @@ Terminals are Menlo 13 px with `[6, 8]` padding; the mods' text is the system UI
     open and draft pull requests), Changes (followed by the changed-file count), Files; counts
     in Menlo 11 px `dim`. The shown view is `foreground` with a 1 px `foreground` line under
     it; the others `dim`, `muted` under the pointer. At the right end `»` (Hide review).
-  - **Pull requests**: a 34 px head, `[ PULL REQUESTS ]` (Menlo 10 px medium `dim`) then
+  - **Pull requests**: a 34 px head, `PULL REQUESTS` (Menlo 10 px medium `#c9c9c9`, the tone of every head's label: the
+    section heads, the review pane's, the cards' and the dialogs') then
     `3 open · 1 failing` (Menlo 11 px; `failing` in `#ef2929`) and a 22 px refresh at the right.
     Then two-line rows (10 px left, 12 px right, 8 px top and bottom, `hover` under the
     pointer): a 5 px dot, `#123` (Menlo 12 px `muted`), the title (13 px `foreground`), the
@@ -97,12 +122,12 @@ Terminals are Menlo 13 px with `[6, 8]` padding; the mods' text is the system UI
     `dim`); under it, 20 px in, Menlo 11 px: `into main`, the checks (`✗ lint · 6/7` in
     `#ef2929`, `running 4/7` in `working`, `✓ 7/7` in `done`), `+a −d`, and `· subagent` when
     a subagent's branch made it. Open and draft ones first; merged and closed ones after a
-    dashed `border` rule and `[ MERGED · CLOSED ]`, their number and title `dim`. Empty: `No
+    dashed `border` rule and `MERGED · CLOSED`, their number and title `dim`. Empty: `No
     pull requests from this session yet.` A row opens the pull request in place: `‹ #123`
     back, its title (14 px semibold), a meta line, then Changes (its files, 28 px rows with
     `A`/`M`/`R`/`D`), Checks and Comments (review state, each comment's markdown), each
     folding at its head.
-  - **Changes**: `[ CHANGES ]` with `+a −d · n files` at the right; 28 px rows (8 px padding,
+  - **Changes**: `CHANGES` with `+a −d · n files` at the right; 28 px rows (8 px padding,
     4 px radius): a 14 px glyph column in Menlo 11 px medium (`A` in `done`, `M` in `idle`,
     `D` in `#ef2929`, `?` untracked in `blocked`), the path, a 5 px `blocked` dot while the
     file is uncommitted, `+a −d`. The row whose diff tab is shown reads as selected. Files
@@ -111,7 +136,7 @@ Terminals are Menlo 13 px with `[6, 8]` padding; the mods' text is the system UI
     commit box: a 28 px message field on `background` (2 px radius, `accent` border while
     typing) and `Commit` (28 px, `solid` on `solid_foreground` when there is a message, else
     `raised` and `dim`).
-  - **Files**: `[ FILES ]` with the changed count; a tree of 22 px rows, 12 px text, 12 px of
+  - **Files**: `FILES` with the changed count; a tree of 22 px rows, 12 px text, 12 px of
     indent per level, a chevron per folder. A changed file reads `foreground` with its glyph,
     an unchanged one `muted`, a deleted one `dim`; a folder shows how many changes it holds.
 - **Folded review**: `»` hides the pane and shows a 40 px rail on `chrome`: `«` in a 40 px cell
@@ -131,7 +156,8 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
 
 ## How it behaves
 
-- **Agent statuses in the sidebar** (a space shows its most urgent agent's):
+- **Agent statuses in the sidebar** (a space shows its most urgent agent's, an agent row its
+  own):
   - working: the working mark in the status column, four 3 px dots on a 2×2 grid at a 5 px
     pitch in `accent`, rippling from the top-left (each dot grows over 360 ms, holds 300,
     shrinks 360, rests 180; the top-right and bottom-left 120 ms behind, the bottom-right 240;
@@ -148,7 +174,8 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   tone (`done` passing, `#ef2929` failing, `working` running, `idle` with no checks); a merged
   or closed one is `unknown`.
 - **Clicks in the sidebar:** a row selects its space; right-click or `⋯` opens herdr's space
-  menu. A project head folds or unfolds (remembered). The Sessions `+` opens a popup:
+  menu. An agent row selects its space and its tab and focuses its pane. A section head or a project head folds or
+  unfolds (remembered); its buttons don't. The Terminals `+` opens a popup:
   Terminal, then "Start an agent" with the installed agents (keys 1 to 9 pick one) and up to
   two not installed, dimmed; each choice is a new space in the home folder. A project's `+`
   opens the same popup, with "Named worktree…" and "Open worktree…" at the bottom (herdr's
@@ -163,7 +190,7 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   opens a 200×72 popup in the `+` menu's rows (↑/↓ move, Enter picks, Esc closes): "New
   workspace…" (the project's `+`) and "Remove project…".
 - **Remove project** opens a 460 px wide modal dialog drawn like the quiet-hours settings (the
-  frame, its four corner points, `[ REMOVE PROJECT ]` and `esc`): `Remove <project>?` (14 px
+  frame, its four corner points, `REMOVE PROJECT` and `esc`): `Remove <project>?` (14 px
   semibold), then in `muted` `Its 3 workspaces close and their terminals are killed. The
   repository at ~/<path> is not touched.` (`Its 1 workspace closes and its terminals are
   killed.` for one). When the project has worktrees under `~/.herdr/worktrees/`, a checkbox,
@@ -195,7 +222,7 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   minutes and on refresh (the icon turns while it checks); the strip's count follows the same
   check.
 - **Usage:** the readout updates when a session started through the launcher replies (Claude
-  Code runs the status line after each reply). Click (once there is a reading): a 340×140 popup card, `[ CLAUDE USAGE ]`, per
+  Code runs the status line after each reply). Click (once there is a reading): a 340×140 popup card, `CLAUDE USAGE`, per
   window its percentage, `resets 16:40 · in 2h 10m` (`resets Thu 09:00` for the week) and a
   2 px meter, then `as of 14:05`. Its tooltip says the same.
 - **Quiet hours:** see `mods/quiet-hours/README.md`. In short: at night (when turned on) the
@@ -229,15 +256,18 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   - `review-rail`, a 40 px block (min and max 40), `hidden`, `chrome`, `window_drag`:
     `curfew-bar` `{role: "rail"}`.
 - **Mods** (all `"place": "none"`):
-  - `curfew-sidebar`: roles `list` (default), `strip`, `foot`. `spaces`, `panes`, `exec` (git),
-    `watchFolder` (each local repo's git dir), `knownAgents`, `pickFolder`, `openOverlay`
-    (herdr's `menu` with `{tab: "space", target: {id}}`, the `curfew-new-session` popup, the
-    `curfew-project` popup and dialog), `run` (`space.select`, `space.new`, `space.close`,
-    `mod.open` `picker`, `app.settings`), `hc` (`get`), `window`, `localStorage` (folded
-    projects). `remove.mjs` holds Remove project's steps as plain functions on an injected
-    `exec`/`hc` (the dialog's plan, the processes, the checked deletions); it takes the menu's
-    and the dialog's requests from shared `curfew-project-action` and `curfew-remove-project`;
-    `curfew-sidebar.remove-project` opens the dialog for the shown space's project.
+  - `curfew-sidebar`: roles `list` (default), `strip`, `foot`. `spaces`, `panes`, `agents`,
+    `exec` (git), `watchFolder` (each local repo's git dir), `knownAgents`, `pickFolder`,
+    `openOverlay` (herdr's `menu` with `{tab: "space", target: {id}}`, the
+    `curfew-new-session` popup, the `curfew-project` popup and dialog), `run` (`space.select`,
+    `tab.select`, `space.new`, `space.close`, `mod.open` `picker`, `app.settings`), `hc`
+    (`get`), `window`, `localStorage` (folded projects, and sections as `section:terminals`,
+    `section:projects`, `section:agents`). `agents.mjs` holds the agent rows' names, order and
+    words as plain functions. `remove.mjs` holds Remove project's steps as plain functions on
+    an injected `exec`/`hc` (the dialog's plan, the processes, the checked deletions); it takes
+    the menu's and the dialog's requests from shared `curfew-project-action` and
+    `curfew-remove-project`; `curfew-sidebar.remove-project` opens the dialog for the shown
+    space's project.
   - `curfew-new-session`: the `+` popup; `knownAgents`, `shared`/`setShared` (`new-menu.agents`,
     the shipped `new-menu`'s cache), `run("space.new")`, and herdr's `worktree` dialog.
   - `curfew-project`: props `{kind: "menu", key, project}` (the `⋯` popup) or `{kind: "remove",
@@ -301,6 +331,7 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   count, sharing the stored check through `pr-store/` (a check younger than 100 s is adopted,
   not repeated). The rule for a session's name (`sessionLabel`, `capTitle`) is in both
   `curfew-sidebar/titles.mjs` and `quiet-hours/names.mjs` (the board's rows): change both.
+  Likewise an agent's name: `agentName` in `curfew-sidebar/agents.mjs` is the board's `rowName`.
 - herdr reloads a mod whose files change: everything written at run time goes to
   `<app home>/curfew/` and `<app home>/quiet-hours/`, never into a mod folder.
 - Closing an overlay cancels its tasks, so the `+` menu, the `⋯` menu and the Remove dialog do
@@ -322,7 +353,7 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
 - `herdr-app check` runs each mod's `init` against the real app home: a copy without a role
   must not start anything (quiet-hours draws an inert preview).
 - The sidebar groups a space under its repo once git has answered for its folder; until then
-  it isn't listed.
+  it isn't listed (its agents are, their project blank).
 - The window buttons sit over the sidebar strip; with the sidebar hidden the tab row starts
   after them (`traffic_lights[0] + 64` px, at the current zoom).
 - Two tones have no theme name: `#c9c9c9` is mixed in code, the bad tone is `ansi9`.
@@ -339,13 +370,18 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
 - The tests pass: `(cd mods/quiet-hours && node --test)`, `(cd mods/curfew-diff && node --test
   tests/*.test.mjs)`, `node --test mods/curfew-claude/*.test.mjs mods/curfew-usage/*.test.mjs
   mods/curfew-prs/*.test.mjs mods/curfew-sidebar/*.test.mjs mods/curfew-project/*.test.mjs`.
-- The sidebar shows `[ SESSIONS ]` and `[ PROJECTS ]`; a space in a git repo sits under its
-  repo's head, named after its branch until a Claude Code session in it names itself (then
-  that name, and the branch only in the row's tooltip); a space in the home folder is a
-  session, named after what runs in it (`caffeinate` while it runs) or its folder (`~`) when
-  only a shell does.
+- The sidebar shows the TERMINALS and PROJECTS heads, each with its count, and the AGENTS block
+  pinned at the bottom; a space in a git repo sits under its repo's head, named after its
+  branch until a Claude Code session in it names itself (then that name, and the branch only in
+  the row's tooltip); a space in the home folder is a session under TERMINALS, named after what
+  runs in it (`caffeinate` while it runs) or its folder (`~`) when only a shell does. A click on
+  a section head folds it, and it is still folded after a reload.
 - A working Claude Code session shows the rippling 2×2 mark; when it asks for input its row
   shows a `#f99c00` dot and, hovered, `needs input`; finished unseen, a `#34c26b` dot.
+- Each agent has a row under AGENTS with its session's name, its project and its word, in view
+  however long the projects get; one that asks for input moves to the top, `needs input` in
+  `#f99c00`, the head reads `1 needs input · n`, and a click on it shows its space and its tab
+  and focuses its pane.
 - The active tab is `#eeeeee` with a `#3fcdb4` underline and reads `claude` or `zsh`; `+` opens
   herdr's `+` menu; the split buttons split the focused pane, and the focused pane gets a 1 px
   `#3fcdb4` top edge.

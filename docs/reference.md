@@ -10,7 +10,7 @@ and how to remove it.
 |---|---|
 | `layouts/curfew.json`, `curfew.svg` | the window, and its picture in herdr's settings |
 | `themes/curfew.json` | the dark palette: `#111111` sidebars, `#181818` work area, `#272727` hairlines, `#3fcdb4` accent |
-| `mods/curfew-sidebar` | `[ SESSIONS ]` (spaces outside any repo) and `[ PROJECTS ]` (git repos, their worktree spaces under them), a status dot or the working mark per row, a project's `+` for a new worktree and `⋯` for its menu; the title strip's search and the foot's settings |
+| `mods/curfew-sidebar` | TERMINALS (spaces outside any repo) and PROJECTS (git repos, their worktree spaces under them), scrolling, and the AGENTS block pinned under them (every agent, the ones that need input first, with its project and status; a click goes to it), each folding at its head bar, which shows its count; a status dot or the working mark per row, a project's `+` for a new worktree and `⋯` for its menu; the title strip's search and the foot's settings |
 | `mods/curfew-project` | a project's `⋯` menu (New workspace…, Remove project…) and the Remove project dialog |
 | `mods/curfew-tabs` | the one tab row: the shown space's tabs named by what runs in them, `+`, split beside and below |
 | `mods/curfew-pane` | the 1 px accent edge on the focused pane of a split tab |
@@ -20,7 +20,7 @@ and how to remove it.
 | `mods/curfew-files` | the worktree's files, changed ones marked |
 | `mods/curfew-diff` | a diff tab in the middle, one file per tab: unified or split, wrap, whitespace, comment lines dimmed, shown or folded, a pull request's review threads inline |
 | `mods/curfew-usage` | Claude Code's 5-hour and weekly usage in the sidebar foot |
-| `mods/curfew-new-session` | the `+` menu (Sessions and each project): a terminal or an agent as a new session, or in a new worktree |
+| `mods/curfew-new-session` | the `+` menu (Terminals and each project): a terminal or an agent as a new session, or in a new worktree |
 | `mods/curfew-claude` | the Claude Code launcher (below) |
 | `mods/quiet-hours` | quiet hours: the chip in the sidebar foot and the night board |
 
@@ -59,7 +59,7 @@ Your own layout stays as it was: `ctrl-shift-l` (or the palette) switches back.
 
 ## Claude Code sessions: the launcher
 
-Claude Code started from the sidebar's `+` menus (Sessions, and a project's) goes through
+Claude Code started from the sidebar's `+` menus (Terminals, and a project's) goes through
 `mods/curfew-claude/claude` when that file is there, which it is after the install. The
 launcher finds your real `claude` and runs it with:
 
@@ -100,7 +100,7 @@ worktree's branches only.
 
 ## New worktrees
 
-A project's `+` opens the same menu as the Sessions `+`: Terminal, then "Start an agent" with
+A project's `+` opens the same menu as the Terminals `+`: Terminal, then "Start an agent" with
 the installed agents (keys 1 to 9), and at the bottom "Named worktree…" and "Open worktree…",
 which open herdr's own worktree dialog. Picking Terminal or an agent makes a worktree at once:
 
@@ -116,7 +116,7 @@ Once a Claude Code session in the new space names itself (from its first prompt,
 `/rename`), the row takes that name; the branch is in the row's tooltip. A space you rename
 keeps your name.
 
-A session (a space outside any project, under `[ SESSIONS ]`) is named the same way, except that
+A session (a space outside any project, under TERMINALS) is named the same way, except that
 until a Claude Code session in it names itself, its row says what runs in it, as its tab does: the
 tab's name if it has one (`Claude Code` for an agent the `+` menu started), else the program
 (`caffeinate`, `nvim`). With only a shell in it, the row shows its folder; its tooltip always does.
