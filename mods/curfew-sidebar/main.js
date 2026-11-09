@@ -19,7 +19,7 @@ import { h_flex, v_flex } from "gpui-base";
 import { spaces, panes, run, openOverlay, closeOverlay, exec, theme, watchFolder, pickFolder, props, knownAgents, appHome, home, readTextFile, shared, setShared, notify, nextCommand, window as appWindow } from "herdr";
 import * as fs from "fs/promises";
 import { Failure, prepareWorkspace, randomName } from "./workspace.mjs";
-import { isClaude, nextTitles } from "./titles.mjs";
+import { isClaude, nextTitles, paneTitle, cleanKept } from "./titles.mjs";
 
 // que's row titles (titles.mjs): { titles: space -> the name its Claude session gave itself,
 // seen: terminal -> the name it showed last }, kept across restarts.
@@ -123,9 +123,10 @@ export default class QueSidebar extends View {
     this.handled = new Set(); // the requests taken
     this.names = new Set(); // names drawn by the jobs, until their branches exist
     this.host = { exec, readTextFile, home, log: (m) => console.log(`curfew-sidebar: ${m}`) };
-    const kept = shared(TITLES);
-    this.titles = kept?.titles ?? {};
-    this.seenTitles = kept?.seen ?? {};
+    const kept = cleanKept(shared(TITLES));
+    this.titles = kept.titles;
+    this.seenTitles = kept.seen;
+    if (kept.changed) setShared(TITLES, { titles: kept.titles, seen: kept.seen });
     // Commits made elsewhere and other machines' repos: looked at again now and then.
     cx.timer.every(60000, (cx) => {
       if (appWindow()?.active) this.ask(Object.keys(this.git), cx);
@@ -395,7 +396,7 @@ export default class QueSidebar extends View {
   follow(sp, ps) {
     const spaceOf = new Map();
     for (const s of sp) for (const c of s.tabs) spaceOf.set(c.id, s.id);
-    const sessions = ps.filter((p) => isClaude(p) && spaceOf.has(p.tab)).map((p) => ({ space: spaceOf.get(p.tab), terminal: p.terminal, title: p.title }));
+    const sessions = ps.filter((p) => isClaude(p) && spaceOf.has(p.tab)).map((p) => ({ space: spaceOf.get(p.tab), terminal: p.terminal, title: paneTitle(p) }));
     const r = nextTitles(this.titles, this.seenTitles, sessions, sp.map((s) => s.id));
     const seenChanged = JSON.stringify(r.seen) !== JSON.stringify(this.seenTitles);
     this.titles = r.titles;

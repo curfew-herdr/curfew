@@ -1,7 +1,22 @@
 // node --test ~/.config/herdr-app/mods/curfew-sidebar/titles.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { sessionLabel, capTitle, isClaude, nextTitles, MAX_TITLE_CHARS } from "./titles.mjs";
+import { sessionLabel, capTitle, isClaude, nextTitles, paneTitle, cleanKept, MAX_TITLE_CHARS } from "./titles.mjs";
+
+test("a terminal with no title, which herdr reports as its address, names nothing", () => {
+  assert.equal(paneTitle({ terminal: "t2c", title: "t2c" }), "");
+  assert.equal(paneTitle({ terminal: "t2c", title: "✳ Small bug hunt" }), "✳ Small bug hunt");
+  assert.equal(paneTitle({ terminal: "t2c" }), "");
+  const r = nextTitles({}, {}, [{ space: "s1", terminal: "t2c", title: paneTitle({ terminal: "t2c", title: "t2c" }) }], ["s1"]);
+  assert.deepEqual(r.titles, {});
+});
+
+test("cleanKept drops a name an address once left, and keeps real ones", () => {
+  const kept = { titles: { s1: "Small bug hunt", s2: "t2c" }, seen: { t2p: "Small bug hunt", t2c: "t2c" } };
+  assert.deepEqual(cleanKept(kept), { titles: { s1: "Small bug hunt" }, seen: { t2p: "Small bug hunt" }, changed: true });
+  assert.equal(cleanKept({ titles: { s1: "A" }, seen: { t1: "A" } }).changed, false);
+  assert.deepEqual(cleanKept(undefined), { titles: {}, seen: {}, changed: false });
+});
 
 test("sessionLabel reads Claude Code's title the way que does", () => {
   assert.equal(sessionLabel("✳ Small bug hunt"), "Small bug hunt");

@@ -27,6 +27,25 @@ export function sessionLabel(raw) {
 /** A Claude Code terminal, as herdr reports it: the agent's own report, else the program. */
 export const isClaude = (p) => Boolean(p.terminal) && (p.app === "claude-code" || p.program?.key === "claude");
 
+/** A pane's title as the program set it: herdr gives a terminal with no title its address
+ *  (`t2c`) instead, which is no session name. */
+export const paneTitle = (p) => (p.title === p.terminal ? "" : (p.title ?? ""));
+
+/** The kept titles without what an address-as-title once left there (a session "named" its own
+ *  terminal's address, before paneTitle). Returns { titles, seen, changed }. */
+export function cleanKept(kept) {
+  const titles = { ...(kept?.titles ?? {}) };
+  const seen = { ...(kept?.seen ?? {}) };
+  let changed = false;
+  for (const [terminal, label] of Object.entries(seen)) {
+    if (label !== terminal) continue;
+    delete seen[terminal];
+    for (const [space, title] of Object.entries(titles)) if (title === terminal) delete titles[space];
+    changed = true;
+  }
+  return { titles, seen, changed };
+}
+
 /**
  * The titles after one look at the window. `titles`: space id -> title (kept across restarts);
  * `seen`: terminal -> the label it showed last time; `sessions`: the Claude terminals now, as
