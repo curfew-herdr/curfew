@@ -1,3 +1,4 @@
+<p align="center"><img src="images/logo.svg" alt="" width="96"></p>
 <h1 align="center">Curfew</h1>
 <h3 align="center">Agents work late. You don't.</h3>
 <p align="center">
@@ -7,7 +8,7 @@
   ·
   <a href="docs/reference.md">Reference</a>
   ·
-  <a href="https://github.com/rquellh/herdr-quiet-hours">Quiet hours on its own</a>
+  <a href="https://github.com/curfew-herdr/quiet-hours">Quiet hours on its own</a>
 </p>
 
 <p align="center"><img src="images/day.gif" alt="A day with Curfew: each task runs in its own worktree while you work, the window goes quiet for a meeting and again at night, a timed unlock is logged, and the morning starts with a summary of the night." width="888"></p>
@@ -33,7 +34,7 @@ is a decision now, not a reflex.
 
 In herdr, ask your agent:
 
-> Add herdr.dev/layouts/rquellh/herdr-curfew, with its themes folder.
+> Add herdr.dev/layouts/curfew-herdr/curfew, with its themes folder.
 
 Or by hand, from a clone of this repo:
 
