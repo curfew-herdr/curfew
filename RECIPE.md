@@ -1,9 +1,10 @@
 # Curfew
 
-que's look in herdr: a near-black window with a sidebar of sessions and git projects, one 40 px
-tab row over hairline-split terminals, and a review pane on the right that switches between the
-session's pull requests, its changes and its files. Diffs open as tabs in the middle with que's
-comment-line modes, the sidebar foot shows Claude Code's 5-hour and weekly usage, and quiet hours
+Run coding agents side by side, each in its own git worktree, and log off while they work: a
+near-black window with a sidebar of sessions and git projects, one 40 px tab row over
+hairline-split terminals, and a review pane on the right that switches between the session's
+pull requests, its changes and its files. Diffs open as tabs in the middle with code comments
+dimmed or folded, the sidebar foot shows Claude Code's 5-hour and weekly usage, and quiet hours
 swap the window for a dim board at night.
 
 ![Curfew](preview.png)
@@ -36,8 +37,8 @@ Terminals are Menlo 13 px with `[6, 8]` padding; the mods' text is the system UI
       session gave itself (the terminal title from its first prompt or `/rename`, without the
       leading `✳`/`◐`/`◑`; `Claude Code` and an empty title change nothing, so the last name
       stays after an exit; kept in shared `curfew-sidebar.titles`); else its branch. A branch
-      that isn't the name is never on the row, only in its tooltip (`branch <name>`), as que
-      keeps it to its hover card. At its right, `↑2 ↓1`
+      that isn't the name is never on the row, only in its tooltip (`branch <name>`). At its
+      right, `↑2 ↓1`
       against its upstream, then `›_` when a program other than an agent or shell runs in
       it. The shown space's row is on `selected`, a hovered one on `hover`. Under the pointer
       the right side shows the status word instead (Menlo 11 px) and an 18 px `⋯`.
@@ -113,7 +114,7 @@ Terminals are Menlo 13 px with `[6, 8]` padding; the mods' text is the system UI
   over a `border` line, then the three view icons stacked in 28 px wide buttons, each with its
   count under it.
 
-**The theme** (`themes/curfew.json`), que's palette. Panels: `background`, `canvas` and `surface`
+**The theme** (`themes/curfew.json`), a near-black palette. Panels: `background`, `canvas` and `surface`
 `#181818`, `chrome` `#111111`, `popover` and `raised` `#202020`, `hover` `#262626`, `selected`
 `#2c2c2c`, `border` `#272727`, `input` `#363636`, `foreground` `#eeeeee`, `muted` `#9b9b9b`,
 `dim` `#6f6f6f`, `accent` `#3fcdb4`, `accent_foreground` `#111111`, `solid` `#e6e6e6`,
@@ -121,8 +122,8 @@ Terminals are Menlo 13 px with `[6, 8]` padding; the mods' text is the system UI
 `#f99c00`, `done` `#34c26b`, `idle` `#7a7a7a`, `unknown` `#5a5a5a`. Terminals: background
 `#181818`, foreground `#eeeeee`, cursor `#3fcdb4`, selection `#363636`, ANSI `#2e3436 #cc0000
 #4e9a06 #c4a000 #3465a4 #75507b #06989a #d3d7cf #555753 #ef2929 #8ae234 #fce94f #729fcf
-#ad7fa8 #34e2e2 #eeeeec`. Two colors have no theme name: `#c9c9c9` (que's secondary text,
-mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, que's bad tone).
+#ad7fa8 #34e2e2 #eeeeec`. Two colors have no theme name: `#c9c9c9` (the secondary text,
+mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone).
 
 ## How it behaves
 
@@ -215,7 +216,7 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, que's bad to
   - `curfew-bar`: roles `bar` (default) and `rail`; `run` (`layout.select` on `review-body`,
     `layout.show`/`layout.hide` on `review` and `review-rail`), `exec` (git; `node
     mods/curfew-prs/check.mjs <folder>` for the count), `watchFolder`, `shared` (`curfew-prs`).
-  - `curfew-prs`: `main.js` draws; `core.mjs` holds the rules (ported from que, plain
+  - `curfew-prs`: `main.js` draws; `core.mjs` holds the rules (plain
     functions); `engine.mjs` runs git and gh and keeps `<app home>/curfew/pr-store/`;
     `check.mjs` is the same check under node; `where.mjs` the followed folder. `exec`,
     `readTextFile`, `writeTextFile`, `watchFolder`, `shared`/`setShared` (`curfew-prs`),
@@ -227,7 +228,7 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, que's bad to
   - `curfew-diff`: a tab's only pane, props `{kind: "changes", folder, file}` or `{kind: "pr",
     repo, number, file}`, opened by the other panels' `difftab.js` (`tab.new` with
     `mod: "curfew-diff"`, or `tab.select` when that file's tab is open); `patch.js` (the diff parser), `comments.js` (which changed lines are
-    only comments: que's rules and language table), `model.js` (rows and heights for a virtual
+    only comments: the rules and a language table), `model.js` (rows and heights for a virtual
     list), `highlight.js` and `vendor.js` (tokenizer, word diff). `curfew-changes` keeps
     byte-for-byte copies of `patch.js` and `comments.js`.
   - `curfew-usage`: roles chip (default), `card` (popup 340×140), preview (opened with
@@ -242,8 +243,8 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, que's bad to
   `mods/workspace-chrome/clock.svg`, `icons/shell.svg`.
 - **Programs:** `git`, `gh`, `node`, `sh` (`basename "$SHELL"`, folder listings), `hc` and
   `herdr-app` (the quiet watcher), `claude` (through the launcher).
-- **Art:** 16 px line icons in que's style (1.5 px stroke, round caps and joins), most of them
-  que's own; the Files chevrons and the Changes icon are herdr's; `layouts/curfew.svg` is the
+- **Art:** 16 px line icons in one style (1.5 px stroke, round caps and joins), most of them
+  drawn for Curfew; the Files chevrons and the Changes icon are herdr's; `layouts/curfew.svg` is the
   settings picture.
 
 ## Watch out
@@ -253,7 +254,7 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, que's bad to
 - Move each mod folder into `mods/` in one rename (stage it in a folder inside the app home,
   then `mv`): a folder herdr sees before its `mod.json` exists is docked into the shown layout.
 - Mods can't import from another mod's folder, so some modules are byte-identical copies
-  (change every copy): `base.js` (que's base for a worktree's changes: the merge base of
+  (change every copy): `base.js` (the base for a worktree's changes: the merge base of
   origin's default branch, else the local one, to the working tree) in curfew-changes, -bar,
   -files and -diff, so the list, the strip's count, the tree's marks and a diff tab agree;
   `difftab.js` (one tab per file; an open one is selected, remembered in shared
@@ -274,7 +275,7 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, que's bad to
   it isn't listed.
 - The window buttons sit over the sidebar strip; with the sidebar hidden the tab row starts
   after them (`traffic_lights[0] + 64` px, at the current zoom).
-- Two que tones have no theme name: `#c9c9c9` is mixed in code, the bad tone is `ansi9`.
+- Two tones have no theme name: `#c9c9c9` is mixed in code, the bad tone is `ansi9`.
 - Pull requests need `gh` signed in and a GitHub `origin`; a space on another machine gets no
   launcher and no pull request count.
 - A `claude` typed by hand in a terminal isn't wrapped: no usage reading, no pull request
