@@ -1,0 +1,13 @@
+curfew-prs: que's pull request view for the herdr app.
+
+core.mjs ports the pull request rules of que (https://github.com/queapp-org/que),
+licensed under the Apache License, Version 2.0 (a copy is in LICENSE):
+src/daemon/branch-history.ts, pr-created.ts, pr-state.ts, pr-state.decode.ts,
+pr-thread.ts, pr-thread.decode.ts and prs.ts (the tick's plan), and
+src/renderer/src/pr-list.ts, format.ts and shared/format.ts. main.js draws
+que's PullRequestList.tsx and PullRequestDetail.tsx; the SVG icons are que's
+components/icons.tsx line icons.
+
+Ideas, no code: the "Branch PR" mod of munza/herdr-mods (Apache-2.0) for a
+pull request list and detail over gh with comment bodies in TextView.markdown,
+and jjangsky/herdr-pr-flow (MIT) for keeping a pull request once it is found.

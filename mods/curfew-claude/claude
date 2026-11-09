@@ -1,0 +1,58 @@
+#!/bin/sh
+# herdr-claude-launcher: Claude Code with curfew's per-session settings.
+# Adds --settings <this folder>/settings.json (a status line that records the
+# plan usage, a hook that records the pull requests a session creates) and,
+# when <app home>/curfew/launcher.json names an instructions file that exists,
+# appends it to the system prompt. Then it execs the real claude, so the process
+# is claude. Start it as `sh <this file>`: it needs no +x bit. The user's own
+# Claude Code settings are never touched.
+
+SELF=$(realpath "$0" 2>/dev/null || printf '%s' "$0")
+DIR=$(CDPATH='' cd -- "$(dirname -- "$SELF")" && pwd -P)
+# The app home: $HERDR_APP_HOME, else the one this file is in (<app home>/mods/curfew-claude/).
+APP_HOME=${HERDR_APP_HOME:-$(dirname -- "$(dirname -- "$DIR")")}
+
+# The real claude: the first executable `claude` on PATH (then the installer's
+# usual places) that is neither this file nor another copy of it.
+REAL=""
+set -f
+OLD_IFS=$IFS
+IFS=:
+for d in $PATH:$HOME/.local/bin:$HOME/.claude/local; do
+  [ -n "$d" ] || continue
+  c="$d/claude"
+  [ -f "$c" ] && [ -x "$c" ] || continue
+  [ "$c" -ef "$SELF" ] && continue
+  head -c 200 "$c" 2>/dev/null | grep -q 'herdr-claude-launcher' && continue
+  REAL=$c
+  break
+done
+IFS=$OLD_IFS
+set +f
+if [ -z "$REAL" ]; then
+  echo "herdr: could not find the claude executable on PATH" >&2
+  exit 127
+fi
+
+# launcher.json's instructions_file ("~/" is the home folder). A missing file,
+# key or launcher.json just leaves the flag out. Read with macOS's plutil, else
+# with node where plutil is missing (or can't read it).
+CONFIG="$APP_HOME/curfew/launcher.json"
+INSTRUCTIONS=""
+if [ -f "$CONFIG" ]; then
+  if command -v plutil >/dev/null 2>&1; then
+    INSTRUCTIONS=$(plutil -extract instructions_file raw -o - "$CONFIG" 2>/dev/null) || INSTRUCTIONS=""
+  fi
+  if [ -z "$INSTRUCTIONS" ] && command -v node >/dev/null 2>&1; then
+    INSTRUCTIONS=$(node -e 'try { const v = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).instructions_file; if (typeof v === "string") process.stdout.write(v); } catch {}' "$CONFIG" 2>/dev/null) || INSTRUCTIONS=""
+  fi
+  case "$INSTRUCTIONS" in "~/"*) INSTRUCTIONS="$HOME/${INSTRUCTIONS#\~/}" ;; esac
+fi
+if [ -n "$INSTRUCTIONS" ] && [ -f "$INSTRUCTIONS" ]; then
+  set -- --append-system-prompt-file "$INSTRUCTIONS" "$@"
+fi
+
+# settings.json's commands find statusline.mjs and pr-hook.mjs through this.
+CURFEW_CLAUDE_DIR=$DIR
+export CURFEW_CLAUDE_DIR
+exec "$REAL" --settings "$DIR/settings.json" "$@"

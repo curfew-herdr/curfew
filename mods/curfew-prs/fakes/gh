@@ -1,0 +1,32 @@
+#!/usr/bin/env node
+// A fake gh for engine.test.mjs: answers `pr list`, `pr view` and `api .../pulls/<n>/{comments,files}`
+// from the JSON fixture at $FAKE_GH (`{prs, lines, files, fail}`), and logs each call's arguments
+// as one JSON line to $FAKE_GH_LOG.
+const fs = require("node:fs");
+const args = process.argv.slice(2);
+fs.appendFileSync(process.env.FAKE_GH_LOG, `${JSON.stringify(args)}\n`);
+const fx = JSON.parse(fs.readFileSync(process.env.FAKE_GH, "utf8"));
+if (fx.fail) {
+  process.stderr.write(`${fx.fail}\n`);
+  process.exit(1);
+}
+const flag = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
+const pick = (p, fields) => Object.fromEntries(fields.split(",").map((f) => [f, f === "statusCheckRollup" ? (p[f] ?? []) : p[f]]));
+const out = (v) => process.stdout.write(JSON.stringify(v));
+if (args[0] === "pr" && args[1] === "list") {
+  const head = flag("--head");
+  out(fx.prs.filter((p) => !head || p.headRefName === head).slice(0, Number(flag("--limit"))).map((p) => pick(p, flag("--json"))));
+} else if (args[0] === "pr" && args[1] === "view") {
+  const p = fx.prs.find((x) => x.number === Number(args[2]));
+  if (!p) {
+    process.stderr.write("GraphQL: Could not resolve to a PullRequest\n");
+    process.exit(1);
+  }
+  out(flag("--json") === "comments,reviews" ? { comments: p.comments ?? [], reviews: p.reviews ?? [] } : pick(p, flag("--json")));
+} else if (args[0] === "api") {
+  const [, n, kind] = /pulls\/(\d+)\/(comments|files)/.exec(args[1]) ?? [];
+  out((kind === "files" ? fx.files : fx.lines)?.[n] ?? []);
+} else {
+  process.stderr.write(`fake gh: no answer for ${args.join(" ")}\n`);
+  process.exit(1);
+}

@@ -1,0 +1,14 @@
+curfew-sidebar: que's sidebar for the herdr app.
+
+workspace.mjs ports parts of que (https://github.com/queapp-org/que), by the same
+author, licensed under the Apache License, Version 2.0
+(https://www.apache.org/licenses/LICENSE-2.0): the workspace name word lists and
+their drawing (src/shared/names.ts); the new-workspace steps of
+src/daemon/workspaces.ts (the name clash check, fetchOrigin, detectDefaultBranch,
+addWorktree and copyIncludes); and the que.toml and .worktreeinclude rules of
+src/shared/config.ts, read by a small reader of its own for setup, default_branch
+and worktree_include. main.js draws que's sidebar (src/renderer/src/components/
+Sidebar.tsx and WorkingMark.tsx, docs/design.md), the preparing row included.
+
+The helpers that find where a space is now (base, place, where) are adapted from
+the Herdr app's shipped spaces mod (Apache-2.0).

@@ -1,0 +1,233 @@
+{
+  "id": "root",
+  "type": "row",
+  "children": [
+    {
+      "id": "sidebar",
+      "type": "column",
+      "children": [
+        {
+          "id": "sidebar-body",
+          "type": "column",
+          "children": [
+            {
+              "id": "sidebar-strip",
+              "type": "block",
+              "content": {
+                "mod": "curfew-sidebar",
+                "props": {
+                  "role": "strip"
+                }
+              },
+              "size": {
+                "px": 40
+              },
+              "window_drag": true
+            },
+            {
+              "id": "projects",
+              "type": "block",
+              "content": {
+                "mod": "curfew-sidebar"
+              }
+            }
+          ],
+          "resizable": false
+        },
+        {
+          "id": "sidebar-foot",
+          "type": "column",
+          "children": [
+            {
+              "id": "quiet-chip",
+              "type": "block",
+              "content": {
+                "mod": "quiet-hours",
+                "props": {
+                  "role": "chip"
+                }
+              },
+              "size": {
+                "px": 30
+              }
+            },
+            {
+              "id": "sidebar-foot-strip",
+              "type": "row",
+              "size": {
+                "px": 36
+              },
+              "resizable": false,
+              "children": [
+                {
+                  "id": "sidebar-tools",
+                  "type": "block",
+                  "content": {
+                    "mod": "curfew-sidebar",
+                    "props": {
+                      "role": "foot"
+                    }
+                  },
+                  "size": {
+                    "px": 36
+                  }
+                },
+                {
+                  "id": "usage",
+                  "type": "block",
+                  "content": {
+                    "mod": "curfew-usage"
+                  }
+                }
+              ]
+            }
+          ],
+          "size": {
+            "px": 66
+          },
+          "resizable": false
+        }
+      ],
+      "size": {
+        "px": 256
+      },
+      "min": 180,
+      "max": 520,
+      "background": "chrome",
+      "divider": {
+        "width": 1,
+        "color": "border"
+      },
+      "resizable": false
+    },
+    {
+      "id": "work",
+      "type": "column",
+      "children": [
+        {
+          "id": "tabs",
+          "type": "block",
+          "content": {
+            "mod": "curfew-tabs"
+          },
+          "size": {
+            "px": 40
+          },
+          "window_drag": true
+        },
+        {
+          "id": "main",
+          "type": "block",
+          "content": {
+            "tab": "active",
+            "pane": {
+              "header": {
+                "content": {
+                  "mod": "curfew-pane"
+                },
+                "reveal": "always",
+                "height": 1,
+                "position": "top"
+              },
+              "background": "background",
+              "radius": 0,
+              "gap": 1
+            }
+          },
+          "background": "border"
+        }
+      ],
+      "background": "background",
+      "resizable": false
+    },
+    {
+      "id": "review",
+      "type": "column",
+      "children": [
+        {
+          "id": "review-bar",
+          "type": "block",
+          "content": {
+            "mod": "curfew-bar"
+          },
+          "size": {
+            "px": 40
+          },
+          "window_drag": true
+        },
+        {
+          "id": "review-body",
+          "type": "stack",
+          "children": [
+            {
+              "id": "prs",
+              "type": "block",
+              "content": {
+                "mod": "curfew-prs"
+              }
+            },
+            {
+              "id": "changes",
+              "type": "block",
+              "content": {
+                "mod": "curfew-changes"
+              }
+            },
+            {
+              "id": "files",
+              "type": "block",
+              "content": {
+                "mod": "curfew-files"
+              }
+            }
+          ],
+          "active": "changes"
+        }
+      ],
+      "size": {
+        "px": 320
+      },
+      "min": 240,
+      "max": 520,
+      "background": "chrome",
+      "resizable": false
+    },
+    {
+      "id": "review-rail",
+      "type": "block",
+      "content": {
+        "mod": "curfew-bar",
+        "props": {
+          "role": "rail"
+        }
+      },
+      "size": {
+        "px": 40
+      },
+      "min": 40,
+      "max": 40,
+      "hidden": true,
+      "background": "chrome",
+      "window_drag": true
+    }
+  ],
+  "background": "background",
+  "theme": "curfew",
+  "font": "Menlo",
+  "font_size": 13,
+  "ui_font": ".SystemUIFont",
+  "terminal_padding": [
+    6,
+    8
+  ],
+  "divider": {
+    "width": 1,
+    "color": "border"
+  },
+  "titlebar": "none",
+  "traffic_lights": [
+    13,
+    13
+  ],
+  "preview": "layouts/curfew.svg"
+}
