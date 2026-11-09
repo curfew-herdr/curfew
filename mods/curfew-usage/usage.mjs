@@ -13,7 +13,8 @@ function decodeWindow(v) {
 }
 
 /** usage.json's reading without the windows that have reset by `now` (que's rule); null when
- *  none is left or the text isn't a reading. `at`: when it was written, or null. */
+ *  none is left or the text isn't a reading. `at`: when it was written, or null. `noFiveHour`:
+ *  Claude Code sent no 5-hour window at all, as on a plan without that limit. */
 export function decodeUsage(text, now) {
   let json;
   try {
@@ -26,7 +27,7 @@ export function decodeUsage(text, now) {
   const fiveHour = live(decodeWindow(limits.five_hour));
   const sevenDay = live(decodeWindow(limits.seven_day));
   if (!fiveHour && !sevenDay) return null;
-  return { fiveHour, sevenDay, at: isNum(json.updatedAt) ? json.updatedAt : null };
+  return { fiveHour, sevenDay, at: isNum(json.updatedAt) ? json.updatedAt : null, noFiveHour: limits.five_hour === undefined };
 }
 
 const pad2 = (n) => String(n).padStart(2, "0");
@@ -58,15 +59,21 @@ export const WINDOWS = [
   { key: "sevenDay", short: "wk", long: "weekly", resets: (w) => `resets ${weekdayClock(w.resetsAt)}` },
 ];
 
-/** Each window's text on the chip: its percentage (`—` without one) and, when `wide` or at 100%,
- *  ` · 2h 10m` until it resets. */
+/** Whether `u` says the plan has no such window: only the 5-hour one, when none was sent. */
+export const unlimited = (u, spec) => spec.key === "fiveHour" && !u?.fiveHour && Boolean(u?.noFiveHour);
+
+/** What a window reads without a percentage: `∞` when the plan has no such limit, else `—`. */
+export const blank = (u, spec) => (unlimited(u, spec) ? "∞" : "—");
+
+/** Each window's text on the chip: its percentage (`∞` or `—` without one) and, when `wide` or
+ *  at 100%, ` · 2h 10m` until it resets. */
 export function pieces(u, wide, now) {
   return WINDOWS.map((spec) => {
     const w = u?.[spec.key];
     return {
       spec,
       w,
-      pct: w ? `${percent(w)}%` : "—",
+      pct: w ? `${percent(w)}%` : blank(u, spec),
       until: w && (wide || level(w) === "bad") ? ` · ${untilShort(w.resetsAt, now)}` : "",
     };
   });
@@ -84,5 +91,8 @@ export function fit(u, now, width, charPx, extra) {
 /** The tooltip: each window's line from que's card, or why there's no reading yet. */
 export function tooltipOf(u, now) {
   if (!u) return "Claude usage fills in after a session's first reply, on plans with usage limits";
-  return WINDOWS.map(({ key, long, resets }) => (u[key] ? `${long} ${percent(u[key])}% · ${resets(u[key], now)}` : `${long} no reading`)).join("\n");
+  return WINDOWS.map((spec) => {
+    const w = u[spec.key];
+    return w ? `${spec.long} ${percent(w)}% · ${spec.resets(w, now)}` : `${spec.long} ${unlimited(u, spec) ? "no limit" : "no reading"}`;
+  }).join("\n");
 }

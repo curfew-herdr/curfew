@@ -13,7 +13,7 @@ test("reads both windows, resets_at from seconds to ms, the percentage clamped",
     five_hour: { used_percentage: 104.2, resets_at: secs(NOW + 2 * H) },
     seven_day: { used_percentage: 18, resets_at: secs(NOW + 76 * H) },
   }), NOW);
-  assert.deepEqual(u, { fiveHour: { pct: 100, resetsAt: NOW + 2 * H }, sevenDay: { pct: 18, resetsAt: NOW + 76 * H }, at: NOW - 60_000 });
+  assert.deepEqual(u, { fiveHour: { pct: 100, resetsAt: NOW + 2 * H }, sevenDay: { pct: 18, resetsAt: NOW + 76 * H }, at: NOW - 60_000, noFiveHour: false });
 });
 
 test("a window whose reset has passed is dropped; with none left there is no reading", () => {
@@ -53,6 +53,18 @@ test("the chip: resets for every window when wide, only at 100% when narrow, —
   assert.equal(pieces(null, true, NOW).map((p) => `${p.spec.short} ${p.pct}${p.until}`).join("  "), "5h —  wk —");
   assert.match(tooltipOf(null, NOW), /fills in after a session's first reply/);
   assert.match(tooltipOf(u, NOW), /^5-hour 100% · resets \d\d:\d\d · in 38m\nweekly 18% · resets \w{3} \d\d:\d\d$/);
+});
+
+test("no 5-hour window sent (a plan without that limit) reads ∞; one whose reset passed reads —", () => {
+  const week = { used_percentage: 18, resets_at: secs(NOW + 76 * H) };
+  const text = (u) => pieces(u, true, NOW).map((p) => `${p.spec.short} ${p.pct}${p.until}`).join("  ");
+  const max = decodeUsage(file({ seven_day: week }), NOW);
+  assert.equal(max.noFiveHour, true);
+  assert.equal(text(max), "5h ∞  wk 18% · 3d 4h");
+  assert.match(tooltipOf(max, NOW), /^5-hour no limit\nweekly 18% · resets \w{3} \d\d:\d\d$/);
+  const passed = decodeUsage(file({ five_hour: { used_percentage: 90, resets_at: secs(NOW - 1000) }, seven_day: week }), NOW);
+  assert.equal(text(passed), "5h —  wk 18% · 3d 4h");
+  assert.match(tooltipOf(passed, NOW), /^5-hour no reading\n/);
 });
 
 test("the chip fits its width: every reset, then que's strip form, then the numbers alone", () => {

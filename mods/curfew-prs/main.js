@@ -1,7 +1,7 @@
 // que's Pull requests view, in herdr: every pull request the session in the shown worktree opened.
-// The list: `[ PULL REQUESTS ]` with `n open · k failing` and a refresh that turns while it checks,
+// The list: `PULL REQUESTS` with `n open · k failing` and a refresh that turns while it checks,
 // then two-line rows (dot, `#n`, title, comment count; `into <base> · checks · +a −d · subagent` in
-// mono), open and draft first, then `[ MERGED · CLOSED ]` under a dashed rule. A row opens the pull
+// mono), open and draft first, then `MERGED · CLOSED` under a dashed rule. A row opens the pull
 // request in place: `‹ #n` back, its title and meta line, then Changes (its files against its base),
 // Checks and Comments, each folding at its head. A file, or a line comment's `path:line →`, opens
 // that file of the pull request's diff as a tab of its own in the main panel (the curfew-diff mod),
@@ -16,6 +16,13 @@ import { makeEngine, EVERY, SIGNAL } from "./engine.mjs";
 import { where } from "./where.mjs";
 import { openDiff, shownDiff, diffKey, settle } from "./difftab.js";
 
+// que's --fg-secondary (#c9c9c9) lies between foreground and muted; the theme has no name for it.
+// The tone of a head's label.
+function secondary(t) {
+  const ch = (c, i) => parseInt(c.slice(1 + 2 * i, 3 + 2 * i), 16);
+  return "#" + [0, 1, 2].map((i) => Math.round(ch(t.foreground, i) * 0.55 + ch(t.muted, i) * 0.45).toString(16).padStart(2, "0")).join("");
+}
+
 const MONO = "Menlo";
 // A prs.jsonl to read instead of the hook's (<app home>/curfew/prs.jsonl), for trying the view; null in use.
 const LOG_FILE = null;
@@ -23,7 +30,7 @@ const engine = makeEngine({ exec, readTextFile, writeTextFile, appHome, mkdir: (
 
 const icon = (name, size = 16) => svg(`mods/curfew-prs/${name}.svg`).size(size).flex_none();
 const mono = (text, color, size = 11) => div().flex_none().font_family(MONO).text_size(size).text_color(color).child(text);
-const label = (t, text) => div().flex_none().font_family(MONO).text_size(10).font_medium().text_color(t.dim).child(`[ ${text} ]`);
+const label = (t, text) => div().flex_none().font_family(MONO).text_size(10).font_medium().text_color(secondary(t)).child(text);
 // que's tones on the curfew theme: good, bad (the diff's red, as Changes draws it), busy, attention, neutral, muted.
 const tone = (t, name) => ({ good: t.done, bad: t.ansi9, busy: t.working, attention: t.blocked, neutral: t.idle, muted: t.unknown })[name] ?? t.dim;
 const rule = (t) => div().flex_none().mx(12).my(6).h(0).border_t(1).border_dashed().border_color(t.border);
@@ -587,7 +594,7 @@ export default class PullRequests extends View {
         ),
     );
 
-    // [ CHANGES ]: the pull request's own files against its base.
+    // CHANGES: the pull request's own files against its base.
     const adds = (files ?? []).reduce((s, f) => s + f.additions, 0);
     const dels = (files ?? []).reduce((s, f) => s + f.deletions, 0);
     body.push(this.fold(t, "files", "CHANGES", files ? dotted(t, [lines(t, adds, dels), mono(String(files.length), t.dim), mono(`vs ${into}`, t.dim)]) : [mono(`vs ${into}`, t.dim)]));
@@ -600,7 +607,7 @@ export default class PullRequests extends View {
     }
     body.push(rule(t));
 
-    // [ CHECKS ]: failing, running and skipped runs, the passing ones folded into one line.
+    // CHECKS: failing, running and skipped runs, the passing ones folded into one line.
     const runs = pr.checkRuns ?? [];
     const { listed, passing } = core.checkGroups(runs);
     const count = core.checksCount(runs);
@@ -645,7 +652,7 @@ export default class PullRequests extends View {
     }
     body.push(rule(t));
 
-    // [ COMMENTS ]: the conversation, oldest first.
+    // COMMENTS: the conversation, oldest first.
     const entries = thread ?? [];
     body.push(this.fold(t, "comments", "COMMENTS", [mono(`${thread ? entries.length : (pr.comments ?? "…")}${pr.review ? ` · ${core.REVIEW_TEXT[pr.review]}` : ""}`, t.dim)]));
     if (this.folds.comments) {

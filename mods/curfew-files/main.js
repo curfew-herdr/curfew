@@ -1,5 +1,5 @@
 // que's Files view, in herdr: a clone of the shipped `files` panel (the same lazy tree and bounded
-// read-only previews), drawn flat the way que draws it: `[ FILES ]` with the changed count in mono,
+// read-only previews), drawn flat the way que draws it: `FILES` with the changed count in mono,
 // 12px rows, 12px of indent per level and a chevron per directory; a changed file reads bright
 // with its glyph, an unchanged one muted, a deleted one faint; a directory counts its changes.
 // The changes are the ones the Changes view lists (base.js: que's base, untracked included), with
@@ -194,7 +194,7 @@ export default class Files extends View {
       .child(h_flex().flex_none().px(12).pt(12).pb(6).gap(8).items_center()
         .when(Boolean(this.file), el => el.child(div().id("files-back").flex_none().cursor_pointer().text_size(13).text_color(t.muted).hover(s => s.text_color(t.foreground))
           .on_click((_e, cx) => { this.show(null); cx.notify(); }).child("‹")))
-        .child(div().flex_none().font_family(MONO).text_size(10).font_medium().text_color(t.dim).child("[ FILES ]"))
+        .child(div().flex_none().font_family(MONO).text_size(10).font_medium().text_color(this.secondary).child("FILES"))
         .child(div().flex_1())
         .child(mono(this.file ? "" : [this.root?.split(/[\\/]/).pop(), marks.length ? `${marks.length} changed` : ""].filter(Boolean).join(" · "), t.dim)))
       .when(!this.file, el => el.child(v_flex().id("files-tree").flex_1().min_h(0).overflow_y_scrollbar().px(8).py(4).children(this.rows("", 0, [], t, marks, shownDiff()))
