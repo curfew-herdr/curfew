@@ -35,7 +35,7 @@ function label(tab, ps, shell) {
   if (!p) return tab.name;
   if (!p.terminal) return p.title || p.mod || tab.name;
   const g = p.program;
-  return !g ? tab.name : g.shell ? shell ?? g.name : g.key === "program" ? g.name : g.key;
+  return !g ? tab.name : g.shell ? shell ?? g.name : g.key === "program" || g.key === "agent" ? g.name : g.key;
 }
 
 // A diff tab (the curfew-diff mod) carries a line icon before its name, as que's do: a pull

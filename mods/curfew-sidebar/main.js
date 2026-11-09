@@ -13,13 +13,24 @@
 // `curfew-sidebar.take`: render() sees the shared change too, but only while the window draws
 // (not behind a locked screen), and the work shouldn't wait for that.
 // `curfew-sidebar.new-workspace` (a key, or `herdr-app do`) opens that menu for the shown space's project.
+//
+// A project's ⋯, or a right-click on its head, opens its menu (mods/curfew-project, props kind
+// "menu"): New workspace… is the +; Remove project… works out here what removing it would close
+// and delete (remove.mjs) and opens que's "Remove <project>?" dialog (kind "remove") with that.
+// Both hand their choice back the + menu's way (shared "curfew-project-action" and
+// "curfew-remove-project", then `curfew-sidebar.take`). The removal runs here, in que's order: the
+// project's spaces close (their terminals' pids read first), the worktrees the dialog's checkbox
+// chose show as rows under the project, their processes get 5 s to end (then SIGKILL, by those
+// pids only), and each worktree is deleted in turn, its row going once it has, or saying why not.
+// `curfew-sidebar.remove-project` opens that dialog for the shown space's project.
 
 import { View, div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { spaces, panes, run, openOverlay, closeOverlay, exec, theme, watchFolder, pickFolder, props, knownAgents, appHome, home, readTextFile, shared, setShared, notify, nextCommand, window as appWindow } from "herdr";
+import { spaces, panes, run, openOverlay, closeOverlay, exec, hc, theme, watchFolder, pickFolder, props, knownAgents, appHome, home, readTextFile, shared, setShared, notify, nextCommand, window as appWindow } from "herdr";
 import * as fs from "fs/promises";
-import { Failure, prepareWorkspace, randomName } from "./workspace.mjs";
-import { isClaude, nextTitles, paneTitle, cleanKept } from "./titles.mjs";
+import { Failure, prepareWorkspace, randomName, worktreeRoot } from "./workspace.mjs";
+import { isClaude, nextTitles, paneTitle, cleanKept, runningName } from "./titles.mjs";
+import { planRemoval, recordProcesses, stopProcesses, deleteWorktrees } from "./remove.mjs";
 
 // que's row titles (titles.mjs): { titles: space -> the name its Claude session gave itself,
 // seen: terminal -> the name it showed last }, kept across restarts.
@@ -34,8 +45,31 @@ const NEW_WORKSPACE = "curfew-new-workspace";
 const STALE = 30_000;
 // A made workspace whose space hasn't shown by then says so.
 const OPENING = 20_000;
+// The project menu's choices, [{ id, at, key, action: "new" | "remove" }], and the Remove dialog's
+// requests, [{ id, at, key, spaces, worktrees }] (mods/curfew-project): taken as the + menu's are.
+const PROJECT_ACTION = "curfew-project-action";
+const REMOVE_PROJECT = "curfew-remove-project";
 // A project's main checkout, from its key (where git keeps the repository: <main>/.git).
 const mainOf = (key) => JSON.parse(key)[1].replace(/\/\.git$/, "");
+// A key from another mod, as [machine, git dir], or null when it isn't one.
+function parseKey(key) {
+  try {
+    const k = JSON.parse(key);
+    return Array.isArray(k) && typeof k[1] === "string" && k[1] ? k : null;
+  } catch {
+    return null;
+  }
+}
+
+// The Remove dialog's overlay: tall enough for its card with the checkbox checked and the
+// worktrees listed (8 rows, then the list scrolls), the body's lines guessed generously from the
+// length of the path it names. The card sizes to its content in the middle of the overlay: the
+// room it doesn't need stays empty, but a card taller than the overlay would be cut.
+function dialogHeight(plan, busy, path) {
+  const lines = Math.ceil((72 + path.length) / 44);
+  const list = plan.worktrees.length ? 80 + Math.min(plan.worktrees.length, 8) * 22 + (plan.outside ? 22 : 0) : 0;
+  return 190 + lines * 22 + list + (busy ? 32 : 0);
+}
 
 // curfew's Claude launcher (mods/curfew-claude), started with sh so it needs no +x bit.
 const LAUNCHER = () => `${appHome()}/mods/curfew-claude/claude`;
@@ -120,9 +154,12 @@ export default class QueSidebar extends View {
     this.working = {}; // space -> it was working at the last render
     this.folded = new Set(JSON.parse(localStorage.getItem("folded") ?? "[]"));
     this.jobs = []; // workspaces being made: { id, key, repo, project, from, name, path, step, error }
+    this.removals = []; // worktrees being deleted, apart from the jobs: { id, key, project, name, path, step, error }
+    this.removing = new Set(); // the projects (keys) being removed
+    this.planning = new Set(); // the projects whose Remove dialog is being worked out
     this.handled = new Set(); // the requests taken
     this.names = new Set(); // names drawn by the jobs, until their branches exist
-    this.host = { exec, readTextFile, home, log: (m) => console.log(`curfew-sidebar: ${m}`) };
+    this.host = { exec, hc, readTextFile, home, log: (m) => console.log(`curfew-sidebar: ${m}`) };
     const kept = cleanKept(shared(TITLES));
     this.titles = kept.titles;
     this.seenTitles = kept.seen;
@@ -138,6 +175,7 @@ export default class QueSidebar extends View {
         // rather than acting on the command with old code.
         cx.notify();
         if (command === "new-workspace") await this.newWorkspaceHere(cx);
+        else if (command === "remove-project") await this.removeProjectHere(cx);
         else if (command === "take") this.take(cx);
       }
     });
@@ -240,19 +278,160 @@ export default class QueSidebar extends View {
     if (g) this.newWorkspace({ repo: g.repo, name: g.name, rows: [{ s, g }] });
   }
 
-  // Requests from the + menu (on its take command, or at a render): each is taken once (by id),
-  // then cleared from the shared list.
+  // The shown space's project, for the remove-project command (as newWorkspaceHere).
+  async removeProjectHere(cx) {
+    const s = spaces().find((x) => x.active);
+    if (!s) return;
+    const k = where(s, panes());
+    const g = this.git[k] ?? (await this.gitOf(k, cx).catch(() => null));
+    if (!g) return;
+    this.git[k] ??= g;
+    this.askRemove(this.projectFor(g.repo, g.name), cx);
+  }
+
+  // Requests from the + menu, the project menu and the Remove dialog (on their take command, or at
+  // a render): each is taken once (by id), one older than STALE is dropped, and the taken ones are
+  // cleared from the shared lists.
   take(cx) {
-    const queue = shared(NEW_WORKSPACE);
+    this.takeFrom(NEW_WORKSPACE, (r) => {
+      if (typeof r.repo === "string" && r.repo) this.start(r, cx);
+    }, cx);
+    // Not inside a render: New workspace… opens the + menu.
+    this.takeFrom(PROJECT_ACTION, (r) => cx.timer.after(0, (cx) => this.projectAction(r, cx)), cx);
+    this.takeFrom(REMOVE_PROJECT, (r) => this.removeTaken(r, cx), cx);
+  }
+
+  takeFrom(name, act, cx) {
+    const queue = shared(name);
     if (!Array.isArray(queue) || queue.length === 0) return;
     for (const r of queue) {
       if (!r || typeof r.id !== "string" || this.handled.has(r.id)) continue;
       this.handled.add(r.id);
-      if (typeof r.repo === "string" && r.repo && Date.now() - (Number(r.at) || 0) < STALE) this.start(r, cx);
+      if (Date.now() - (Number(r.at) || 0) < STALE) act(r);
     }
     cx.timer.after(0, () => {
-      const now = shared(NEW_WORKSPACE);
-      if (Array.isArray(now) && now.some((r) => this.handled.has(r?.id))) setShared(NEW_WORKSPACE, now.filter((r) => !this.handled.has(r?.id)));
+      const now = shared(name);
+      if (Array.isArray(now) && now.some((r) => this.handled.has(r?.id))) setShared(name, now.filter((r) => !this.handled.has(r?.id)));
+    });
+  }
+
+  // A project by its key, as the list draws it now; bare once nothing of it is left to draw.
+  projectFor(key, name) {
+    return this.group(spaces(), panes()).projects.get(key) ?? { repo: key, name: name || base(mainOf(key)), rows: [] };
+  }
+
+  // A project's ⋯, and a right-click on its head: its menu (mods/curfew-project), whose choice
+  // comes back as a request (take). One project menu at a time, the + menu included.
+  projectActions(p) {
+    if (this.projectMenu) closeOverlay(this.projectMenu);
+    this.projectMenu = openOverlay({ mod: "curfew-project", kind: "popup", width: 200, height: 72, props: { kind: "menu", key: p.repo, project: p.name } });
+  }
+
+  // The project menu's choice: New workspace… is the project's +; Remove project… asks first.
+  projectAction(r, cx) {
+    if (!parseKey(r.key)) return;
+    if (r.action === "new") this.newWorkspace(this.projectFor(r.key));
+    else if (r.action === "remove") this.askRemove(this.projectFor(r.key), cx);
+  }
+
+  // A workspace of the project is being made (its row shows and hasn't failed).
+  creating(key) {
+    const main = mainOf(key);
+    return this.jobs.some((j) => !j.error && (j.key === key || j.repo === main));
+  }
+
+  // Remove project…: what removing it would close and delete, worked out here (remove.mjs), then
+  // que's dialog (mods/curfew-project) with that as its props, so the dialog runs no git; its
+  // Remove comes back as a request (take). A project on another machine offers no worktrees:
+  // deleting them runs on this computer only.
+  askRemove(p, cx) {
+    const k = parseKey(p.repo);
+    if (!k || this.removing.has(p.repo) || this.planning.has(p.repo)) return;
+    this.planning.add(p.repo);
+    const main = mainOf(p.repo);
+    const rows = p.rows ?? [];
+    cx.spawn(async () => {
+      try {
+        const plan = k[0] ? { worktrees: [], outside: 0 } : await planRemoval(this.host, { main, root: worktreeRoot(home()), open: rows.map((r) => ({ top: r.g.top, linked: r.g.linked })) });
+        const busy = this.creating(p.repo);
+        const shown = main.startsWith(`${home()}/`) ? `~${main.slice(home().length)}` : main;
+        if (this.removeDialog) closeOverlay(this.removeDialog);
+        this.removeDialog = openOverlay({ mod: "curfew-project", kind: "dialog", modal: true, frame: "none", width: 460, height: dialogHeight(plan, busy, shown),
+          props: { kind: "remove", key: p.repo, project: p.name, path: main, workspaces: rows.map((r) => r.s.id), worktrees: plan.worktrees, outside: plan.outside, busy } });
+      } catch (e) {
+        notify({ title: `Couldn't remove ${p.name}`, body: String(e?.message ?? e), level: "error" });
+      } finally {
+        this.planning.delete(p.repo);
+      }
+    });
+  }
+
+  // The Remove dialog's request, unless that project's removal is already running or one of its
+  // workspaces has started being made since the dialog opened.
+  removeTaken(r, cx) {
+    const k = parseKey(r.key);
+    if (!k || this.removing.has(r.key) || this.creating(r.key)) return;
+    this.removeProject(r, k, cx);
+  }
+
+  // Removes a project, que's order: its terminals first, then its worktrees. The pids behind its
+  // spaces' terminals are read (on this computer), the spaces close, the worktrees asked for show
+  // as rows under the project; once those processes have ended (after 5 s, SIGKILL for those pids
+  // only), each worktree is deleted in turn (remove.mjs) and its row goes, or says why it couldn't.
+  // Branches and the main checkout are never touched. What the project leaves behind goes with it:
+  // the failed rows of workspaces it was making, and its fold.
+  removeProject(r, k, cx) {
+    const key = r.key, main = mainOf(key), here = !k[0];
+    const sp = spaces(), ps = panes();
+    const name = this.group(sp, ps).projects.get(key)?.name ?? base(main);
+    const closing = (Array.isArray(r.spaces) ? r.spaces : []).map((id) => sp.find((s) => s.id === id)).filter(Boolean);
+    const addresses = closing.flatMap((s) => {
+      const tabs = new Set(s.tabs.map((c) => c.id));
+      return ps.filter((p) => tabs.has(p.tab) && p.terminal).map((p) => p.terminal);
+    });
+    const paths = here && Array.isArray(r.worktrees) ? [...new Set(r.worktrees.filter((p) => typeof p === "string" && p))] : [];
+    this.removing.add(key);
+    this.jobs = this.jobs.filter((j) => !(j.error && (j.key === key || j.repo === main)));
+    if (this.folded.delete(key)) localStorage.setItem("folded", JSON.stringify([...this.folded]));
+    cx.spawn(async (cx) => {
+      // A reload of this mod mid-way loses the redraw (as in make()) and the 5 s timer with it.
+      const redraw = () => {
+        try {
+          cx.notify();
+        } catch {}
+      };
+      const wait = (ms) => new Promise((resolve) => cx.timer.after(ms, () => resolve()));
+      const rows = paths.map((path, i) => ({ id: `${r.id}-${i}`, key, project: name, name: base(path), path, step: "stopping", error: "" }));
+      const rowOf = (path) => rows.find((row) => row.path === path);
+      try {
+        const procs = here ? await recordProcesses(this.host, addresses) : [];
+        for (const s of closing) run("space.close", { id: s.id, confirmed: true });
+        this.removals.push(...rows);
+        redraw();
+        await stopProcesses(this.host, procs, { wait });
+        for (const row of rows) row.step = "waiting"; // its turn comes: one at a time
+        redraw();
+        await deleteWorktrees(this.host, {
+          main,
+          root: worktreeRoot(home()),
+          paths,
+          onStart: (path) => {
+            rowOf(path).step = "deleting";
+            redraw();
+          },
+          onEnd: (path, error) => {
+            if (error) rowOf(path).error = error.split(home()).join("~");
+            else this.removals = this.removals.filter((row) => row !== rowOf(path));
+            redraw();
+          },
+        });
+      } catch (e) {
+        // Unexpected (the steps answer their failures): the rows still waiting say so.
+        for (const row of this.removals) if (rows.includes(row) && !row.error) row.error = String(e?.message ?? e).split(home()).join("~");
+      } finally {
+        this.removing.delete(key);
+        redraw();
+      }
     });
   }
 
@@ -316,8 +495,10 @@ export default class QueSidebar extends View {
     if (this.jobs.some((j) => !j.error && j.step === "opening" && shows(j))) this.jobs = this.jobs.filter((j) => j.error || j.step !== "opening" || !shows(j));
   }
 
+  // A failed row's ×: a workspace that wasn't made, or a worktree that wasn't deleted.
   dismiss(job, cx) {
     this.jobs = this.jobs.filter((j) => j !== job);
+    this.removals = this.removals.filter((j) => j !== job);
     cx.notify();
   }
 
@@ -353,14 +534,19 @@ export default class QueSidebar extends View {
       .child(button);
   }
 
+  // A project's head: it folds; under the pointer its + and ⋯ (the ⋯ not while it is being
+  // removed); a right-click opens the ⋯'s menu.
   head(p, t) {
-    const id = `head-${p.repo}`, hot = this.hover === id, open = !this.folded.has(p.repo);
+    const id = `head-${p.repo}`, hot = this.hover === id, open = !this.folded.has(p.repo), removing = this.removing.has(p.repo);
     const done = p.rows.filter((r) => r.s.status === "done" && !r.s.active).length;
     return h_flex().id(id).h(26).mt(8).px(8).gap(6).flex_none().items_center().rounded(4)
       .when(hot, (el) => el.bg(t.hover))
       .tooltip(JSON.parse(p.repo)[1].replace(/\/\.git$/, ""))
       .on_hover((on, cx) => this.hovered(id, on, cx))
       .on_click((_e, cx) => this.fold(p.repo, cx))
+      .on_mouse_down("right", () => {
+        if (!this.removing.has(p.repo)) this.projectActions(p);
+      })
       .child(h_flex().w(16).flex_none().justify_center().text_color(hot ? t.muted : t.dim)
         .child(icon(hot ? (open ? "chevron-down" : "chevron-right") : "folder")))
       .child(div().flex_1().min_w(0).truncate().text_size(12).font_medium()
@@ -368,12 +554,19 @@ export default class QueSidebar extends View {
       .when(!open && !hot, (el) => el.child(h_flex().flex_none().font_family(MONO).text_size(11).text_color(t.dim)
         .when(done > 0, (c) => c.child(div().text_color(t.done).child(`${done} done`)).child(div().child(" · ")))
         .child(String(p.rows.length))))
-      .when(hot, (el) => el.child(this.ghost(`new-${p.repo}`, "plus", "New workspace: a terminal or an agent in a new worktree", t, () => this.newWorkspace(p))));
+      .when(hot, (el) => el.child(this.ghost(`new-${p.repo}`, "plus", "New workspace: a terminal or an agent in a new worktree", t, () => this.newWorkspace(p))))
+      .when(hot && !removing, (el) => el.child(h_flex().id(`more-${p.repo}`).size(18).flex_none().items_center().justify_center().rounded(2).text_color(t.dim)
+        .hover((st) => st.bg(t.selected).text_color(t.foreground)).tooltip("More actions")
+        .on_click((_e, cx) => { cx.stop_propagation(); this.projectActions(p); })
+        .child("⋯")));
   }
 
   // A workspace being made: que's preparing row, the working mark in the neutral tone and the
   // step it is on where `›_` would sit. Once a step has failed: the bad tone's dot, `failed` and
   // ×, and the reason on a line under it (whole in its tooltip); nothing of it is left on disk.
+  // A worktree being deleted (Remove project) shows the same way, its steps `stopping` (its
+  // terminals' processes ending), `waiting` (for its turn) and `deleting`; failed, the worktree is
+  // still there.
   jobRow(job, t) {
     const id = `job-${job.id}`, failed = Boolean(job.error);
     const row = h_flex().id(id).h(26).px(8).gap(6).flex_none().items_center().rounded(4)
@@ -407,17 +600,22 @@ export default class QueSidebar extends View {
   row({ s, g }, session, t, ps) {
     const id = `row-${s.id}`, hot = this.hover === id, bg = running(s, ps), look = statusLook(s, bg, t);
     // que's row name: a space someone named keeps its name; else the name its Claude session gave
-    // itself (titles.mjs); else the branch (a worktree's generated name); else herdr's name.
-    const name = s.named ? s.name : this.titles[s.id] || (g?.branch ? g.branch : s.name);
+    // itself (titles.mjs); else, for a session, the program running in it, as its tab says it
+    // (caffeinate, nvim; a shell names nothing); else the branch (a worktree's generated name);
+    // else herdr's name (a session's folder).
+    const name = s.named ? s.name : this.titles[s.id] || (session && runningName(s, ps)) || (g?.branch ? g.branch : s.name);
     // The branch isn't on the row (que keeps it to the hover card): a worktree's generated name
-    // means nothing next to its session's name. It shows in the row's tooltip instead.
+    // means nothing next to its session's name. It shows in the row's tooltip instead, as a
+    // session's folder does.
     const branch = g?.branch && g.branch !== name ? g.branch : "";
+    const folder = session ? place(s, ps) : "";
+    const tip = branch ? `branch ${branch}` : folder.startsWith(`${home()}/`) || folder === home() ? `~${folder.slice(home().length)}` : folder;
     const ab = [g?.ahead ? `↑${g.ahead}` : "", g?.behind ? `↓${g.behind}` : ""].filter(Boolean).join(" ");
     const mark = look.mark ? workingMark(t.accent) : session && !look.loud ? this.mono("›_", t.dim) : div().size(5).rounded_full().bg(look.dot);
     return h_flex().id(id).h(26).px(8).gap(6).flex_none().items_center().rounded(4)
       .when(s.active, (el) => el.bg(t.selected))
       .when(!s.active && hot, (el) => el.bg(t.hover))
-      .when(Boolean(branch), (el) => el.tooltip(`branch ${branch}`))
+      .when(Boolean(tip), (el) => el.tooltip(tip))
       .on_hover((on, cx) => this.hovered(id, on, cx))
       .on_click(() => run("space.select", { id: s.id }))
       .on_mouse_down("right", () => this.menu(s))
@@ -454,7 +652,21 @@ export default class QueSidebar extends View {
     if (due.length) this.ask(due, cx);
     this.settle(sp, ps);
     this.follow(sp, ps);
+    const { sessions, projects } = this.group(sp, ps);
 
+    return v_flex().id("curfew-sidebar").size_full().min_h(0).bg(t.chrome).text_size(13)
+      .child(v_flex().id("curfew-sidebar-list").flex_1().min_h(0).px(6).pb(8).overflow_y_scrollbar()
+        .child(this.section("SESSIONS", this.ghost("session-new", "plus", "New session: a terminal or an agent outside any project", t, () => this.newSession()), t))
+        .children(sessions.map((r) => this.row(r, true, t, ps)))
+        .child(this.section("PROJECTS", this.ghost("project-add", "folder-plus", "Add project: a git repository", t, (cx) => this.addProject(cx)), t))
+        .children([...projects.values()].flatMap((p) => [this.head(p, t), ...(this.folded.has(p.repo) ? [] : [...p.rows.map((r) => this.row(r, false, t, ps)), ...[...(p.jobs ?? []), ...(p.removals ?? [])].map((j) => this.jobRow(j, t))])]))
+        .when(projects.size === 0, (el) => el.child(div().px(8).py(6).text_size(12).text_color(t.dim).child("Add a git repository to start a workspace."))));
+  }
+
+  // The list's groups: sessions (spaces outside any repo), and projects by their repo's key, each
+  // with its spaces (the main checkout first), its workspaces being made and its worktrees being
+  // deleted; those two keep a project's head after its last space has gone.
+  group(sp, ps) {
     const sessions = [], projects = new Map();
     for (const s of sp) {
       const g = this.git[where(s, ps)];
@@ -464,19 +676,15 @@ export default class QueSidebar extends View {
       projects.get(g.repo).rows.push({ s, g });
     }
     for (const p of projects.values()) p.rows.sort((a, b) => a.g.linked - b.g.linked);
-    // Workspaces being made go under their project (which keeps its head even with no space left).
     for (const job of this.jobs) {
       const key = (job.key && projects.has(job.key) && job.key) || [...projects.keys()].find((k) => mainOf(k) === job.repo) || job.key || JSON.stringify([null, `${job.repo}/.git`]);
       if (!projects.has(key)) projects.set(key, { repo: key, name: job.project, rows: [] });
       (projects.get(key).jobs ??= []).push(job);
     }
-
-    return v_flex().id("curfew-sidebar").size_full().min_h(0).bg(t.chrome).text_size(13)
-      .child(v_flex().id("curfew-sidebar-list").flex_1().min_h(0).px(6).pb(8).overflow_y_scrollbar()
-        .child(this.section("SESSIONS", this.ghost("session-new", "plus", "New session: a terminal or an agent outside any project", t, () => this.newSession()), t))
-        .children(sessions.map((r) => this.row(r, true, t, ps)))
-        .child(this.section("PROJECTS", this.ghost("project-add", "folder-plus", "Add project: a git repository", t, (cx) => this.addProject(cx)), t))
-        .children([...projects.values()].flatMap((p) => [this.head(p, t), ...(this.folded.has(p.repo) ? [] : [...p.rows.map((r) => this.row(r, false, t, ps)), ...(p.jobs ?? []).map((j) => this.jobRow(j, t))])]))
-        .when(projects.size === 0, (el) => el.child(div().px(8).py(6).text_size(12).text_color(t.dim).child("Add a git repository to start a workspace."))));
+    for (const row of this.removals) {
+      if (!projects.has(row.key)) projects.set(row.key, { repo: row.key, name: row.project, rows: [] });
+      (projects.get(row.key).removals ??= []).push(row);
+    }
+    return { sessions, projects };
   }
 }

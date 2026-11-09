@@ -31,6 +31,33 @@ export const isClaude = (p) => Boolean(p.terminal) && (p.app === "claude-code" |
  *  (`t2c`) instead, which is no session name. */
 export const paneTitle = (p) => (p.title === p.terminal ? "" : (p.title ?? ""));
 
+/** The program in a terminal pane, named as the tab row (curfew-tabs) names it: a known program or
+ *  agent by its key (claude, nvim), any other by its process name (caffeinate). "" for a shell, a
+ *  mod pane or no program: those say nothing the folder doesn't. */
+export function programName(p) {
+  const g = p?.terminal ? p.program : null;
+  if (!g || g.shell) return "";
+  return (g.key === "program" || g.key === "agent" ? g.name : g.key) || "";
+}
+
+/** A session's row name (a space outside any project) from what runs in it, as its tabs say it: the
+ *  tab on show first, then the others; a tab's name if someone named it (the + menu names an
+ *  agent's tab, "Claude Code"), else its agent, its focused pane or another, by program. "" when
+ *  only shells run in unnamed tabs: the row keeps its folder. */
+export function runningName(space, panes) {
+  const tabs = [...(space?.tabs ?? [])].sort((a, b) => Number(Boolean(b.active)) - Number(Boolean(a.active)));
+  const rank = (p) => (p.program?.agent ? 0 : p.focused ? 1 : 2);
+  for (const tab of tabs) {
+    if (tab.named && tab.name) return tab.name;
+    const mine = panes.filter((p) => p.tab === tab.id).sort((a, b) => rank(a) - rank(b));
+    for (const p of mine) {
+      const name = programName(p);
+      if (name) return name;
+    }
+  }
+  return "";
+}
+
 /** The kept titles without what an address-as-title once left there (a session "named" its own
  *  terminal's address, before paneTitle). Returns { titles, seen, changed }. */
 export function cleanKept(kept) {

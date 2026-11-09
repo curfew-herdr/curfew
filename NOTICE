@@ -31,6 +31,12 @@ readout, and themes/curfew.json holds que's palette. Ported from que's code:
   default branch, worktree add and copied includes of src/daemon/workspaces.ts;
   the que.toml and .worktreeinclude rules of src/shared/config.ts), and the
   preparing row (Sidebar.tsx, WorkingMark.tsx). See that folder's NOTICE.
+- mods/curfew-project and mods/curfew-sidebar/remove.mjs: Remove project, que's
+  way: the project menu's items (Sidebar.tsx), the dialog's words
+  (RemoveProjectDialog in src/renderer/src/components/dialogs.tsx), and the
+  removal order (WorkspaceManager.removeProject and its removal steps in
+  src/daemon/workspaces.ts: the terminals first, then each worktree removed by
+  force and pruned, the branches kept). Deleting the worktrees is opt-in here.
 - The 16 px line icons are que's (src/renderer/src/components/icons.tsx), or
   drawn in their style for Curfew.
 
@@ -50,7 +56,12 @@ Version 2.0. All of them are modified.
 - mods/curfew-new-session: adapted from the shipped new-menu mod (the menu's
   rows, keys and agent cache).
 - mods/curfew-sidebar: the helpers that find where a space is now (base, place,
-  where) are adapted from the shipped spaces mod.
+  where) are adapted from the shipped spaces mod. remove.mjs reads `git worktree
+  list --porcelain` and checks for uncommitted changes (git status without
+  optional locks or fsmonitor) as the shipped worktree mod does.
+- mods/curfew-project: the menu's keys (↑/↓, Enter, Esc) are adapted from the
+  shipped menu mod, its rows from the shipped new-menu mod (by way of
+  curfew-new-session).
 - mods/curfew-tabs, mods/curfew-bar, mods/quiet-hours: the layout-node lookup
   (find) is adapted from the shipped tabs and workspace-chrome mods.
 - mods/quiet-hours draws the Herdr app's mods/workspace-chrome/clock.svg, and

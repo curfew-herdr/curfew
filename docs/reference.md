@@ -1,8 +1,8 @@
 # Curfew reference
 
 The details behind the [README](../README.md): what each piece is, the install step by step, the
-Claude Code launcher, new worktrees, quiet hours, what Curfew runs and writes, and how to remove
-it.
+Claude Code launcher, new worktrees, removing a project, quiet hours, what Curfew runs and writes,
+and how to remove it.
 
 ## What's in it
 
@@ -10,7 +10,8 @@ it.
 |---|---|
 | `layouts/curfew.json`, `curfew.svg` | the window, and its picture in herdr's settings |
 | `themes/curfew.json` | the dark palette: `#111111` sidebars, `#181818` work area, `#272727` hairlines, `#3fcdb4` accent |
-| `mods/curfew-sidebar` | `[ SESSIONS ]` (spaces outside any repo) and `[ PROJECTS ]` (git repos, their worktree spaces under them), a status dot or the working mark per row, a project's `+` for a new worktree; the title strip's search and the foot's settings |
+| `mods/curfew-sidebar` | `[ SESSIONS ]` (spaces outside any repo) and `[ PROJECTS ]` (git repos, their worktree spaces under them), a status dot or the working mark per row, a project's `+` for a new worktree and `⋯` for its menu; the title strip's search and the foot's settings |
+| `mods/curfew-project` | a project's `⋯` menu (New workspace…, Remove project…) and the Remove project dialog |
 | `mods/curfew-tabs` | the one tab row: the shown space's tabs named by what runs in them, `+`, split beside and below |
 | `mods/curfew-pane` | the 1 px accent edge on the focused pane of a split tab |
 | `mods/curfew-bar` | the review pane's strip (Pull requests, Changes, Files, with counts; » folds it) and its 40 px folded rail |
@@ -115,8 +116,48 @@ Once a Claude Code session in the new space names itself (from its first prompt,
 `/rename`), the row takes that name; the branch is in the row's tooltip. A space you rename
 keeps your name.
 
+A session (a space outside any project, under `[ SESSIONS ]`) is named the same way, except that
+until a Claude Code session in it names itself, its row says what runs in it, as its tab does: the
+tab's name if it has one (`Claude Code` for an agent the `+` menu started), else the program
+(`caffeinate`, `nvim`). With only a shell in it, the row shows its folder; its tooltip always does.
+
 Claude Code asks whether to trust each new folder. A worktree uses its main repository's answer,
 so trust a project once from its main folder and its new worktrees start straight away.
+
+## Removing a project
+
+A project's `⋯` (beside its `+`, under the pointer), or a right-click on the project's name, opens
+a small menu: "New workspace…" (the same as the `+`) and "Remove project…". Remove project… asks
+first, in a dialog that says what will happen:
+
+- **Closed:** every space of the project. Their terminals end, and with them whatever runs in
+  them, agents included.
+- **Deleted, only if you tick the box** ("Also delete its worktree …", off by default): the
+  project's worktrees in `~/.herdr/worktrees/`, open or not. Ticked, the dialog lists them,
+  marks those with no space open as `closed` and those with uncommitted changes, which go with
+  them; a line also counts the project's worktrees elsewhere that have a space open: those are
+  only closed.
+- **Never touched:** the repository itself (its main checkout, history and settings), every
+  branch (a deleted worktree's branch stays, so `git worktree add <path> <branch>` brings it
+  back), and anything outside `~/.herdr/worktrees/`, worktrees you made elsewhere included.
+
+Enter removes, Esc cancels, Space ticks the box. While a workspace of the project is still being
+made, Remove is off until it is.
+
+After Remove the spaces close at once. A terminal's own process, or the program in front of it,
+still running 5 seconds later is killed by the process id read from that terminal just before it
+closed, never by name. Then each worktree is deleted in turn (`git worktree remove --force`,
+which takes untracked files and submodules with it), shown as a row under the project with its
+step (`stopping`, `waiting`, `deleting`) until it is gone. A worktree that can't go, a locked one
+for instance, keeps its row with git's reason until you dismiss it with `×`. Last, git forgets
+the deleted worktrees (`git worktree prune`) and the emptied `~/.herdr/worktrees/<repo>` folder
+is removed. A project on another machine only has its spaces closed.
+
+The project leaves the sidebar with its last space: it was only ever the spaces open in it, and
+opening a folder of the repository again brings it back. `curfew-sidebar.remove-project` (a key,
+or `herdr-app do`) asks to remove the shown space's project; while the dialog is open,
+`curfew-project.toggle`, `curfew-project.remove` and `curfew-project.cancel` do what Space, Enter
+and Esc do.
 
 ## Quiet hours
 
@@ -142,6 +183,15 @@ folders:
   `~/.herdr/worktrees/<repo>/`, copies the gitignored files its `.worktreeinclude` (or
   `que.toml` `worktree_include`) lists, and runs the repo's `que.toml` `setup` commands in the
   new terminal. "Named worktree…" and "Open worktree…" are herdr's own dialog.
+- **Remove project…:** when its dialog opens, `git worktree list --porcelain -z` in the main
+  checkout and `git status --porcelain` in each worktree it could delete. On Remove,
+  `hc get <terminal>` for each of the project's terminals before they close (their process ids),
+  then `ps -o pid=,lstart= -p <ids>` about four times a second for up to 5 seconds, and
+  `kill -KILL <ids>` for those still running, matched by start time too: only the closed
+  terminals' own processes, never a name or a pattern. With the box ticked, then
+  `git worktree list --porcelain -z` again, `git worktree remove --force <path>` for each
+  worktree under `~/.herdr/worktrees/` that list still has, `git worktree prune`, and `rmdir` on
+  the emptied `~/.herdr/worktrees/<repo>` folder.
 - **gh** (GitHub, over the network): `gh pr list`, `gh pr view`, `gh api
   repos/<owner>/<repo>/pulls/<n>/comments|files` for the Pull requests pane, about every 2.5
   minutes while it shows; `gh pr diff` and `gh api graphql` (review threads) for a pull
@@ -155,7 +205,8 @@ folders:
   launcher's scripts), `curfew/pr-store/*.json` (the pull requests found per worktree);
   `quiet-hours/*`, `settings.json`'s `sounds.enabled`, `layouts/quiet-hours.json` and
   `layouts/quiet-hours.svg` (quiet hours). Elsewhere: new worktrees in `~/.herdr/worktrees/`,
-  and your commits. Nothing is written to a mod folder or to your Claude Code settings.
+  and your commits; Remove project, with its box ticked, deletes worktrees there. Nothing is
+  written to a mod folder or to your Claude Code settings.
 - **Files read** outside the app home: your repositories (diffs, file previews), your Claude Code
   settings files for your own status line (read only), the instructions file named in
   `curfew/launcher.json`, and `PATH`, `~/.local/bin` and `~/.claude/local` to find `claude`.
@@ -180,8 +231,11 @@ added it.
 
 ## Tests
 
+From the repo root, with node 22.15 or later:
+
 ```sh
-(cd mods/quiet-hours && node --test)
-(cd mods/curfew-diff && node --test tests/*.test.mjs)
-node --test mods/curfew-claude/*.test.mjs mods/curfew-usage/*.test.mjs mods/curfew-prs/*.test.mjs mods/curfew-sidebar/*.test.mjs
+npm test
 ```
+
+It runs every `mods/**/*.test.mjs` with `node --test`. CI runs the same on macOS on every push to
+`main` and every pull request.

@@ -1,7 +1,49 @@
 // node --test ~/.config/herdr-app/mods/curfew-sidebar/titles.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { sessionLabel, capTitle, isClaude, nextTitles, paneTitle, cleanKept, MAX_TITLE_CHARS } from "./titles.mjs";
+import { sessionLabel, capTitle, isClaude, nextTitles, paneTitle, cleanKept, programName, runningName, MAX_TITLE_CHARS } from "./titles.mjs";
+
+// herdr's programs, as panes() reports them.
+const SHELL = { key: "shell", name: "zsh", shell: true, agent: false };
+const CAFFEINATE = { key: "program", name: "caffeinate", shell: false, agent: false };
+const CLAUDE = { key: "claude", name: "Claude Code", shell: false, agent: true };
+const NVIM = { key: "nvim", name: "Neovim", shell: false, agent: false };
+const pane = (tab, terminal, program, focused = false) => ({ tab, terminal, program, focused });
+
+test("a program is named as the tab row names it, and a shell or a mod pane not at all", () => {
+  assert.equal(programName(pane("a", "t1", CAFFEINATE)), "caffeinate");
+  assert.equal(programName(pane("a", "t1", NVIM)), "nvim");
+  assert.equal(programName(pane("a", "t1", CLAUDE)), "claude");
+  assert.equal(programName(pane("a", "t1", { key: "agent", name: "aider", shell: false, agent: true })), "aider");
+  assert.equal(programName(pane("a", "t1", SHELL)), "");
+  assert.equal(programName(pane("a", "t1", null)), "");
+  assert.equal(programName({ tab: "a", mod: "curfew-diff", program: NVIM }), "");
+});
+
+test("a session is named by what runs in it: the tab on show first, and only shells name nothing", () => {
+  const space = { tabs: [{ id: "a", active: false }, { id: "b", active: true }] };
+  assert.equal(runningName(space, [pane("a", "t1", NVIM), pane("b", "t2", CAFFEINATE)]), "caffeinate");
+  assert.equal(runningName(space, [pane("a", "t1", NVIM), pane("b", "t2", SHELL)]), "nvim");
+  assert.equal(runningName(space, [pane("a", "t1", SHELL), pane("b", "t2", SHELL)]), "");
+  assert.equal(runningName({ tabs: [] }, []), "");
+  assert.equal(runningName(undefined, []), "");
+});
+
+test("a tab someone named is called by its name, as the tab row calls it", () => {
+  const named = { tabs: [{ id: "a", active: true, named: true, name: "Claude Code" }] };
+  assert.equal(runningName(named, [pane("a", "t1", CLAUDE)]), "Claude Code");
+  const server = { tabs: [{ id: "a", active: true, named: true, name: "server" }, { id: "b", named: false, name: "2" }] };
+  assert.equal(runningName(server, [pane("a", "t1", SHELL), pane("b", "t2", CAFFEINATE)]), "server");
+  const unnamed = { tabs: [{ id: "a", active: true, named: false, name: "1" }] };
+  assert.equal(runningName(unnamed, [pane("a", "t1", SHELL)]), "");
+});
+
+test("in a split tab the agent comes first, then the focused pane", () => {
+  const space = { tabs: [{ id: "a", active: true }] };
+  assert.equal(runningName(space, [pane("a", "t1", CAFFEINATE, true), pane("a", "t2", CLAUDE)]), "claude");
+  assert.equal(runningName(space, [pane("a", "t1", NVIM), pane("a", "t2", CAFFEINATE, true)]), "caffeinate");
+  assert.equal(runningName(space, [pane("a", "t1", SHELL, true), pane("a", "t2", CAFFEINATE)]), "caffeinate");
+});
 
 test("a terminal with no title, which herdr reports as its address, names nothing", () => {
   assert.equal(paneTitle({ terminal: "t2c", title: "t2c" }), "");

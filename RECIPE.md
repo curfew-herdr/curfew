@@ -28,16 +28,20 @@ Terminals are Menlo 13 px with `[6, 8]` padding; the mods' text is the system UI
       medium, `muted`); folded, its row count at the right in Menlo 11 px `dim`, preceded by
       `2 done ·` in `done` when its spaces finished unseen. Under the pointer the head takes
       `hover`, the folder becomes a chevron (down when open, right when folded), the name turns
-      `#c9c9c9`, and a `+` appears at its right. Then its spaces, the main checkout first,
-      worktrees after it. While a new worktree is being made, a "preparing" row sits under
-      its project until the space opens.
+      `#c9c9c9`, and a `+` and an 18 px `⋯` appear at its right (no `⋯` while the project is
+      being removed). Then its spaces, the main checkout first, worktrees after it. While a new
+      worktree is being made, a "preparing" row sits under its project until the space opens;
+      while Remove project deletes a worktree, a row for it sits there too.
     - With no projects: `Add a git repository to start a workspace.` (12 px, `dim`).
     - **A row**, 26 px, 8 px padding, 6 px gaps, 4 px radius: a 16 px status column (below),
       then the name: a space someone named keeps its name; else the name its Claude Code
       session gave itself (the terminal title from its first prompt or `/rename`, without the
       leading `✳`/`◐`/`◑`; `Claude Code` and an empty title change nothing, so the last name
-      stays after an exit; kept in shared `curfew-sidebar.titles`); else its branch. A branch
-      that isn't the name is never on the row, only in its tooltip (`branch <name>`). At its
+      stays after an exit; kept in shared `curfew-sidebar.titles`); else, for a session, what
+      runs in it as its tab names it (the shown tab first: a tab's name if someone named it, else
+      its agent's or program's: `claude`, `nvim`, `caffeinate`; a shell names nothing); else its
+      branch; else herdr's name (a session's folder). A branch that isn't the name is never on
+      the row, only in its tooltip (`branch <name>`); a session's tooltip is its folder. At its
       right, `↑2 ↓1`
       against its upstream, then `›_` when a program other than an agent or shell runs in
       it. The shown space's row is on `selected`, a hovered one on `hover`. Under the pointer
@@ -155,7 +159,28 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   `worktree_include`) copied in and `que.toml`'s `setup` run in the new terminal before the
   agent. Claude Code starts through the launcher (`mods/curfew-claude/claude`) when it is
   there. Folder-plus picks a folder and opens it as a space; search opens herdr's space
-  picker; the gear opens herdr's settings.
+  picker; the gear opens herdr's settings. A right-click on a project's head, or its `⋯`,
+  opens a 200×72 popup in the `+` menu's rows (↑/↓ move, Enter picks, Esc closes): "New
+  workspace…" (the project's `+`) and "Remove project…".
+- **Remove project** opens a 460 px wide modal dialog drawn like the quiet-hours settings (the
+  frame, its four corner points, `[ REMOVE PROJECT ]` and `esc`): `Remove <project>?` (14 px
+  semibold), then in `muted` `Its 3 workspaces close and their terminals are killed. The
+  repository at ~/<path> is not touched.` (`Its 1 workspace closes and its terminals are
+  killed.` for one). When the project has worktrees under `~/.herdr/worktrees/`, a checkbox,
+  off by default (14 px, `accent` with a check when ticked): `Also delete its worktree <name>`,
+  or `Also delete its 2 worktrees`. Ticked, it lists each worktree (12.5 px) with `closed`
+  (Menlo 11 px `dim`) when no space is open in it and `uncommitted changes` (`blocked`), then
+  `Branches are kept.` (`muted`) and `Uncommitted changes are lost.` (`blocked`) when one is
+  dirty, and `1 worktree outside ~/.herdr/worktrees is only closed.` when a space is open in a
+  worktree elsewhere. While a workspace of the project is being made: `A workspace is being
+  made in it; remove it once that's done.` (`blocked`) and Remove faded. Buttons: Cancel, and
+  Remove in the bad tone (`ansi9` text on `ansi9` at 16% with a 45% border; solid on hover).
+  Enter removes, Esc cancels, Space toggles the box. On Remove the project's spaces close at
+  once; whatever of their terminals' processes still runs 5 s later is killed by its pid; then
+  the ticked worktrees are deleted one at a time, each a row under the project (the neutral
+  working mark, `stopping`, `waiting`, `deleting`; failed: `failed`, git's reason and `×`), and
+  the emptied `~/.herdr/worktrees/<repo>` goes. Branches, the main checkout and worktrees
+  elsewhere stay. The project leaves the sidebar with its last space.
 - **Tabs:** click selects, double-click renames, right-click opens herdr's tab menu, `×`
   closes, `+` opens herdr's `+` menu, the split buttons split the focused pane right or down.
 - **Review pane:** a view icon shows that view (and unfolds the pane); `»` folds it to the rail,
@@ -206,11 +231,19 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
 - **Mods** (all `"place": "none"`):
   - `curfew-sidebar`: roles `list` (default), `strip`, `foot`. `spaces`, `panes`, `exec` (git),
     `watchFolder` (each local repo's git dir), `knownAgents`, `pickFolder`, `openOverlay`
-    (herdr's `menu` with `{tab: "space", target: {id}}`, the `curfew-new-session` popup),
-    `run` (`space.select`, `space.new`, `mod.open` `picker`, `app.settings`), `window`,
-    `localStorage` (folded projects).
+    (herdr's `menu` with `{tab: "space", target: {id}}`, the `curfew-new-session` popup, the
+    `curfew-project` popup and dialog), `run` (`space.select`, `space.new`, `space.close`,
+    `mod.open` `picker`, `app.settings`), `hc` (`get`), `window`, `localStorage` (folded
+    projects). `remove.mjs` holds Remove project's steps as plain functions on an injected
+    `exec`/`hc` (the dialog's plan, the processes, the checked deletions); it takes the menu's
+    and the dialog's requests from shared `curfew-project-action` and `curfew-remove-project`;
+    `curfew-sidebar.remove-project` opens the dialog for the shown space's project.
   - `curfew-new-session`: the `+` popup; `knownAgents`, `shared`/`setShared` (`new-menu.agents`,
     the shipped `new-menu`'s cache), `run("space.new")`, and herdr's `worktree` dialog.
+  - `curfew-project`: props `{kind: "menu", key, project}` (the `⋯` popup) or `{kind: "remove",
+    key, project, path, workspaces, worktrees, outside, busy}` (the dialog; `words.mjs` holds
+    its wording); `shared`/`setShared`, `run("curfew-sidebar.take")`, `closeOverlay`,
+    `nextCommand` (`toggle`, `remove`, `cancel` while the dialog is open). No git.
   - `curfew-tabs`: `spaces`, `panes`, `layout` (the sidebar's width), `window`, `settings`
     (zoom), `PathBuilder` (the dashed line), `openOverlay` (herdr's `menu` and `new-menu`),
     `run` (`tab.select`, `tab.rename`, `tab.close`, `pane.split`).
@@ -246,7 +279,8 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   `picker` (search), `worktree` (Named worktree…, Open worktree…), and
   `mods/workspace-chrome/clock.svg`, `icons/shell.svg`.
 - **Programs:** `git`, `gh`, `node`, `sh` (`basename "$SHELL"`, folder listings), `hc` and
-  `herdr-app` (the quiet watcher), `claude` (through the launcher).
+  `herdr-app` (the quiet watcher), `claude` (through the launcher); for Remove project, `hc get`,
+  `ps -o pid=,lstart=`, `kill -KILL` (recorded pids only) and `rmdir`.
 - **Art:** 16 px line icons in one style (1.5 px stroke, round caps and joins), most of them
   drawn for Curfew; the Files chevrons and the Changes icon are herdr's; `layouts/curfew.svg` is the
   settings picture.
@@ -269,6 +303,17 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   `curfew-sidebar/titles.mjs` and `quiet-hours/names.mjs` (the board's rows): change both.
 - herdr reloads a mod whose files change: everything written at run time goes to
   `<app home>/curfew/` and `<app home>/quiet-hours/`, never into a mod folder.
+- Closing an overlay cancels its tasks, so the `+` menu, the `⋯` menu and the Remove dialog do
+  no work: each adds a request (`id`, `at`) to a shared list, runs `curfew-sidebar.take` and
+  closes; the sidebar takes each request once and drops one older than 30 s. The sidebar works
+  out the dialog's contents before opening it, and opens it tall enough for the ticked list
+  and a long path: the card centres itself and sizes to its content, and a card taller than its
+  overlay is cut.
+- Remove project deletes only what `git worktree list` still lists as a linked worktree of that
+  repository, strictly under `~/.herdr/worktrees/` (no `..`, not a `-x` sibling of the root,
+  never the main checkout or a folder holding another worktree), checked right before each
+  `git worktree remove --force`, which refuses a locked worktree. Recorded pids carry their
+  start time, so a pid reused by another program is never killed.
 - The mods find each other's nodes by id: `review`, `review-rail`, `review-body`, `sidebar`.
   Keep them.
 - Start the launcher as `sh <path>`: an installer may drop its executable bit. It `exec`s the
@@ -293,11 +338,12 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   `herdr-app do layout.switch '{"name":"curfew"}'` leaves `herdr-app status` with `"errors": []`.
 - The tests pass: `(cd mods/quiet-hours && node --test)`, `(cd mods/curfew-diff && node --test
   tests/*.test.mjs)`, `node --test mods/curfew-claude/*.test.mjs mods/curfew-usage/*.test.mjs
-  mods/curfew-prs/*.test.mjs`.
+  mods/curfew-prs/*.test.mjs mods/curfew-sidebar/*.test.mjs mods/curfew-project/*.test.mjs`.
 - The sidebar shows `[ SESSIONS ]` and `[ PROJECTS ]`; a space in a git repo sits under its
   repo's head, named after its branch until a Claude Code session in it names itself (then
   that name, and the branch only in the row's tooltip); a space in the home folder is a
-  session.
+  session, named after what runs in it (`caffeinate` while it runs) or its folder (`~`) when
+  only a shell does.
 - A working Claude Code session shows the rippling 2×2 mark; when it asks for input its row
   shows a `#f99c00` dot and, hovered, `needs input`; finished unseen, a `#34c26b` dot.
 - The active tab is `#eeeeee` with a `#3fcdb4` underline and reads `claude` or `zsh`; `+` opens
@@ -309,6 +355,9 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   comment-only change reads dimmed by default.
 - A project's `+` and Terminal makes a worktree with an `adjective-adjective-noun` branch under
   `~/.herdr/worktrees/<repo>/`, shown as a "preparing" row, then as a space under the project.
+- A project's `⋯`, Remove project…, the box ticked and Remove closes its spaces, deletes its
+  worktrees under `~/.herdr/worktrees/<repo>/` and then that folder, and keeps every branch,
+  the main checkout and worktrees elsewhere; unticked, it only closes the spaces.
 - After `gh pr create` in a session started from the sidebar, the pull request shows in Pull
   requests within one check, with its checks line, and the strip counts it.
 - After a launcher session's first reply, `<app home>/curfew/usage.json` exists and the foot

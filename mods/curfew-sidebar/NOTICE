@@ -12,6 +12,15 @@ Sidebar.tsx and WorkingMark.tsx, docs/design.md), the preparing row included.
 titles.mjs ports que's session names: the label a Claude Code session writes to its
 terminal title (src/shared/session-label.ts, capTitle of src/shared/brief.ts) and
 the rule that it names its workspace (src/daemon/workspaces.ts, labelFromSession).
+remove.mjs and main.js remove a project que's way: the dialog's words
+(RemoveProjectDialog in src/renderer/src/components/dialogs.tsx, drawn by
+mods/curfew-project) and the removal order of WorkspaceManager.removeProject and its
+removal steps (src/daemon/workspaces.ts): the terminals first, then each worktree
+removed by force and pruned, the branches kept. Here deleting the worktrees is
+opt-in, only those under ~/.herdr/worktrees go, and each is checked against git's
+list again right before.
 
 The helpers that find where a space is now (base, place, where) are adapted from
-the Herdr app's shipped spaces mod (Apache-2.0).
+the Herdr app's shipped spaces mod (Apache-2.0). remove.mjs reads `git worktree list
+--porcelain` and checks for uncommitted changes (git status without optional locks
+or fsmonitor) as the Herdr app's shipped worktree mod does (Apache-2.0).
