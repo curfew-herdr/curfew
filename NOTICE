@@ -1,4 +1,4 @@
-herdr-curfew: que's look for the herdr app
+Curfew: a layout for the herdr app
 Copyright 2026 Ryan Quellhorst
 
 Licensed under the Apache License, Version 2.0 (see LICENSE).
@@ -23,6 +23,9 @@ readout, and themes/curfew.json holds que's palette. Ported from que's code:
   pr-created.ts.
 - mods/quiet-hours: que's quiet hours (the board, the logged unlock, quiet now,
   the apply-tonight guardrail, the overnight summary).
+- mods/curfew-sidebar/titles.mjs and mods/quiet-hours/names.mjs: que's name for
+  a Claude Code session (src/shared/session-label.ts, and capTitle in
+  src/shared/brief.ts), which names a sidebar row and a quiet board row.
 - mods/curfew-sidebar/workspace.mjs: a new workspace made que's way (the name
   word lists and drawing of src/shared/names.ts; the name clash check, fetch,
   default branch, worktree add and copied includes of src/daemon/workspaces.ts;

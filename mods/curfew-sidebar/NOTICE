@@ -9,6 +9,9 @@ addWorktree and copyIncludes); and the que.toml and .worktreeinclude rules of
 src/shared/config.ts, read by a small reader of its own for setup, default_branch
 and worktree_include. main.js draws que's sidebar (src/renderer/src/components/
 Sidebar.tsx and WorkingMark.tsx, docs/design.md), the preparing row included.
+titles.mjs ports que's session names: the label a Claude Code session writes to its
+terminal title (src/shared/session-label.ts, capTitle of src/shared/brief.ts) and
+the rule that it names its workspace (src/daemon/workspaces.ts, labelFromSession).
 
 The helpers that find where a space is now (base, place, where) are adapted from
 the Herdr app's shipped spaces mod (Apache-2.0).

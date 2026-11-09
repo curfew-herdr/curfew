@@ -121,7 +121,7 @@ so trust a project once from its main folder and its new worktrees start straigh
 ## Quiet hours
 
 The chip at the foot of the sidebar is the quiet-hours mod, the same one as
-[herdr-quiet-hours](https://github.com/rquellh/herdr-quiet-hours), shipped here so the layout
+[quiet-hours](https://github.com/curfew-herdr/quiet-hours), shipped here so the layout
 works out of the box. At night it shows a dim board instead of your terminals, turns herdr's
 sounds off, and logs every unlock. **The schedule starts off:** click the clock at the chip's
 right end to turn it on and set your hours. `Quiet 30m 1h 2h` works any time. Details:
@@ -134,7 +134,8 @@ folders:
 
 - **git, reading** in each space's folder: status, diffs against the merge base of the default
   branch, branch and upstream distance, the HEAD reflog, the worktree list (curfew-sidebar,
-  -bar, -changes, -files, -diff, -prs).
+  -bar, -changes, -files, -diff, -prs). The quiet board runs `git rev-parse --git-common-dir`
+  once in each agent's folder, for its project's name (quiet-hours).
 - **git, writing**, only when you ask: the Changes commit box runs `git add -A` and
   `git commit -m <message>` when you click Commit; a project's `+` (Terminal or an agent)
   fetches from `origin` (network), adds a branch and a worktree under

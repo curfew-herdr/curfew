@@ -174,8 +174,10 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   window its percentage, `resets 16:40 · in 2h 10m` (`resets Thu 09:00` for the week) and a
   2 px meter, then `as of 14:05`. Its tooltip says the same.
 - **Quiet hours:** see `mods/quiet-hours/README.md`. In short: at night (when turned on) the
-  window switches to a dim board; `unlock 10 min` is logged; `Quiet 30m 1h 2h` starts a quiet
-  now; the chip's clock opens the settings.
+  window switches to a dim board, a row per agent with the name its Claude Code session gave
+  itself (as in the sidebar) and, faint, its project (the git repository's name);
+  `unlock 10 min` is logged; `Quiet 30m 1h 2h` starts a quiet now; the chip's clock opens the
+  settings.
 - **What moves:** the working mark, the refresh icon while checking, the quiet chip's
   countdown, and at night the board's working dots. Nothing else animates.
 
@@ -236,8 +238,10 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   - `curfew-claude`: the launcher `claude` (sh), `settings.json` (what `--settings` passes),
     `statusline.mjs`, `pr-hook.mjs`; `main.js` is a card of what the launcher will use
     (`mod.open`), shown by no layout.
-  - `quiet-hours`: roles `chip`, `board`, `menu`, `settings`; its watcher `quietd.mjs`. Fully
-    described in `mods/quiet-hours/README.md` (the same mod as herdr-quiet-hours).
+  - `quiet-hours`: roles `chip`, `board`, `menu`, `settings`; its watcher `quietd.mjs`; the
+    board names a row after its agent's Claude Code session and its project (`exec` git
+    `rev-parse --git-common-dir` in the agent's folder). Fully described in
+    `mods/quiet-hours/README.md` (the same mod as curfew-herdr/quiet-hours).
 - **Shipped mods used:** `menu` (space and tab menus), `new-menu` (the tab row's `+`),
   `picker` (search), `worktree` (Named worktree…, Open worktree…), and
   `mods/workspace-chrome/clock.svg`, `icons/shell.svg`.
@@ -261,7 +265,8 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   `curfew-diff.tabs`) in curfew-changes, -files and -prs; `patch.js` and `comments.js` in
   curfew-diff and curfew-changes. `curfew-bar` runs `curfew-prs`' `check.mjs` with node for its
   count, sharing the stored check through `pr-store/` (a check younger than 100 s is adopted,
-  not repeated).
+  not repeated). The rule for a session's name (`sessionLabel`, `capTitle`) is in both
+  `curfew-sidebar/titles.mjs` and `quiet-hours/names.mjs` (the board's rows): change both.
 - herdr reloads a mod whose files change: everything written at run time goes to
   `<app home>/curfew/` and `<app home>/quiet-hours/`, never into a mod folder.
 - The mods find each other's nodes by id: `review`, `review-rail`, `review-body`, `sidebar`.
@@ -309,5 +314,5 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
 - After a launcher session's first reply, `<app home>/curfew/usage.json` exists and the foot
   reads `5h n%`.
 - `»` folds the review pane to the 40 px rail; `«` brings it back.
-- The quiet chip shows `Quiet 30m 1h 2h` and `off`; `30m` switches to the dim board and
-  `end quiet` comes back.
+- The quiet chip shows `Quiet 30m 1h 2h` and `off`; `30m` switches to the dim board, whose rows
+  read each session's name and its project, and `end quiet` comes back.
