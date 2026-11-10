@@ -84,10 +84,13 @@ Other people's herdr mods
 
 ------------------------------------------------------------------------------
 Lucide (mods/curfew-files/chevron-down.svg and chevron-right.svg,
-mods/curfew-file/file-tab.svg)
+mods/curfew-file/file-tab.svg, mods/curfew-bar/open-editor.svg)
 ------------------------------------------------------------------------------
 
 https://github.com/lucide-icons/lucide
+
+mods/curfew-bar/open-editor.svg is Lucide's code, modified:
+drawn at 16 px with a 2.25 stroke (1.5 px at that size, as Curfew's other icons).
 
 ISC License
 

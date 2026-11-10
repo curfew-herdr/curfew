@@ -14,7 +14,7 @@ and how to remove it.
 | `mods/curfew-project` | a project's `⋯` menu (New workspace…, Remove project…) and the Remove project dialog |
 | `mods/curfew-tabs` | the one tab row: the shown space's tabs named by what runs in them, `+`, split beside and below |
 | `mods/curfew-pane` | the 1 px accent edge on the focused pane of a split tab |
-| `mods/curfew-bar` | the review pane's strip (Pull requests, Changes, Files, with counts; » folds it) and its 40 px folded rail |
+| `mods/curfew-bar` | the review pane's strip (Pull requests, Changes, Files, with counts; the button left of » opens the worktree in your code editor, » folds it) and its 40 px folded rail |
 | `mods/curfew-prs` | the session's pull requests: checks, review state, changed files, comments |
 | `mods/curfew-changes` | the worktree's changes against its base branch, comment-only files last, a commit box |
 | `mods/curfew-files` | the worktree's files, changed ones marked; a changed file opens its diff tab, any other its file tab |
@@ -202,11 +202,22 @@ folders:
   scripts; the quiet watcher is a node process.
 - **sh:** curfew-tabs runs `sh -c 'basename "$SHELL"'` once (to name a shell tab `zsh`);
   curfew-files lists folders with `sh -c` (PowerShell on Windows); the launcher is `sh`.
+- **Open in editor** (the review strip's button left of `»`): once per run, unless
+  `settings.json` names the editor, `mktemp -d`, `touch` on nine empty probe files there
+  (`probe.ts`, `.py`, `.rs`, `.go`, `.c`, `.sh`, `.json`, `.md`, `.txt`), one `osascript -l
+  JavaScript` that asks macOS which app opens each, then `rm -f` on those files and `rmdir` on
+  the folder. The app that opens the most of them is the editor (never a browser, a terminal
+  or QuickTime; TextEdit only if nothing else). On a click, `git rev-parse --show-toplevel`
+  when the strip hasn't found the repo yet, then `open -a <editor> <folder> [<file>]`: the
+  folder Changes and Files show, and the shown file tab's or diff tab's file when it is in it.
+  With no editor found, plain `open`. To choose the editor yourself, put an app name or path
+  in `~/.config/herdr-app/settings.json`: `{ "curfew": { "editor": "Zed" } }`; read once per run.
 - **Files written** under `~/.config/herdr-app`: `curfew/usage.json`, `curfew/prs.jsonl` (the
   launcher's scripts), `curfew/pr-store/*.json` (the pull requests found per worktree);
   `quiet-hours/*`, `settings.json`'s `sounds.enabled`, `layouts/quiet-hours.json` and
   `layouts/quiet-hours.svg` (quiet hours). Elsewhere: new worktrees in `~/.herdr/worktrees/`,
-  and your commits; Remove project, with its box ticked, deletes worktrees there. Nothing is
+  and your commits; Remove project, with its box ticked, deletes worktrees there; Open in
+  editor's empty probe files in a `mktemp -d` folder, removed at once. Nothing is
   written to a mod folder or to your Claude Code settings.
 - **Files read** outside the app home: your repositories (diffs, file tabs), your Claude Code
   settings files for your own status line (read only), the instructions file named in
