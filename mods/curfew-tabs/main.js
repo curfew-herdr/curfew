@@ -39,8 +39,10 @@ function label(tab, ps, shell) {
 }
 
 // A diff tab (the curfew-diff mod) carries a line icon before its name, as que's do: a pull
-// request's (`#123`) the branch-merge mark, a file's the page with ±.
+// request's (`#123`) the branch-merge mark, a file's the page with ±. A file tab (curfew-file)
+// carries the plain page.
 function modIcon(tab, ps) {
+  if (ps.some((p) => p.tab === tab.id && p.mod === "curfew-file")) return svg("mods/curfew-file/file-tab.svg").size(14).flex_none();
   if (!ps.some((p) => p.tab === tab.id && p.mod === "curfew-diff")) return null;
   return svg(`mods/curfew-diff/${tab.name.startsWith("#") ? "pr" : "diff-tab"}.svg`).size(14).flex_none();
 }

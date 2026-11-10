@@ -50,9 +50,11 @@ Version 2.0. All of them are modified.
 
 - mods/curfew-changes: adapted from the shipped changes mod (its panel, git
   status handling and commit box). Its changes.svg is the Herdr app's.
-- mods/curfew-files: adapted from the shipped files mod (the lazy tree, folder
-  listing and bounded previews). Its chevron-down.svg and chevron-right.svg are
-  the Herdr app's copies of Lucide icons (licence below).
+- mods/curfew-files: adapted from the shipped files mod (the lazy tree and
+  folder listing). Its chevron-down.svg and chevron-right.svg are the Herdr
+  app's copies of Lucide icons (licence below).
+- mods/curfew-file: the shipped files mod's bounded read-only preview (the read,
+  its bounds and words, the language table), moved from curfew-files into a tab.
 - mods/curfew-new-session: adapted from the shipped new-menu mod (the menu's
   rows, keys and agent cache).
 - mods/curfew-sidebar: the helpers that find where a space is now (base, place,
@@ -81,7 +83,8 @@ Other people's herdr mods
   (Apache-2.0) and from jjangsky/herdr-pr-flow (MIT); see mods/curfew-prs/NOTICE.
 
 ------------------------------------------------------------------------------
-Lucide (mods/curfew-files/chevron-down.svg, chevron-right.svg and the file*.svg icons)
+Lucide (mods/curfew-files/chevron-down.svg and chevron-right.svg,
+mods/curfew-file/file-tab.svg)
 ------------------------------------------------------------------------------
 
 https://github.com/lucide-icons/lucide
@@ -125,3 +128,39 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+------------------------------------------------------------------------------
+Seti UI (mods/curfew-files/seti/*.svg)
+------------------------------------------------------------------------------
+
+https://github.com/jesseweed/seti-ui
+
+The Files tree's file icons are a subset of Seti UI's, the icons of VS Code's
+default file icon theme, and the names, extensions and colors that pick them
+in mods/curfew-files/icons.mjs follow Seti's mapping.less and ui-variables.less.
+Modified: six icons (default, go2, lock, vite, vue, zip) have square viewBoxes,
+the glyphs unchanged, and Seti's grey and ignore colors are lifted to its
+grey-light. mods/curfew-files/seti/LICENSE holds the licence:
+
+The MIT License (MIT)
+
+Copyright (c) 2014 Jesse Weed
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

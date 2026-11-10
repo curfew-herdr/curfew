@@ -4,7 +4,8 @@ Run coding agents side by side, each in its own git worktree, and log off while 
 near-black window with a sidebar of terminals, git projects and agents, one 40 px tab row over
 hairline-split terminals, and a review pane on the right that switches between the session's
 pull requests, its changes and its files. Diffs open as tabs in the middle with code comments
-dimmed or folded, the sidebar foot shows Claude Code's 5-hour and weekly usage, and quiet hours
+dimmed or folded (other files open there read-only), the sidebar foot shows Claude Code's
+5-hour and weekly usage, and quiet hours
 swap the window for a dim board at night.
 
 ![Curfew](preview.png)
@@ -69,7 +70,7 @@ Terminals are Menlo 13 px with `[6, 8]` padding; the mods' text is the system UI
       `dim`: `needs input` (in `blocked`), `working`, `done` (no time), `idle`. Those that need
       input come first, then working, done, idle, each in herdr's order. Its tooltip is its
       space's row name, when that isn't the agent's own.
-  - **The foot**, 66 px: the quiet-hours chip (a 30 px block), then a 36 px row: a gear
+  - **The foot**, 78 px: the quiet-hours chip (a 42 px block, its 26 px row centered with 8 px above and below), then a 36 px row: a gear
     (Settings) in a 36 px block and the usage readout filling the rest.
     - **Usage readout**, Menlo 11 px, right-aligned: `5h 42% · 2h 10m   wk 18% · 3d 4h`. Labels
       `dim`, numbers `muted` (`foreground` under the pointer, on a 22 px `hover` button with a
@@ -92,7 +93,7 @@ Terminals are Menlo 13 px with `[6, 8]` padding; the mods' text is the system UI
     of `working`, `blocked` or `done` when its agent is in that state, then `×` (hidden; at
     half strength on the active or hovered tab; full under the pointer). A diff tab has a
     14 px icon before its name: a page with ± for a file, the branch-merge mark for a pull
-    request's (`#123 …`). Then `+` (22 px, 4 px after the last tab). At the right end, 22 px
+    request's (`#123 …`); a file tab a plain page. Then `+` (22 px, 4 px after the last tab). At the right end, 22 px
     buttons: split beside and split below. With the sidebar hidden, the row starts after the
     window buttons.
   - **Panes**: the shown tab's terminals, square, 1 px apart on `border` (the gaps read as
@@ -107,6 +108,13 @@ Terminals are Menlo 13 px with `[6, 8]` padding; the mods' text is the system UI
     words of a changed pair marked, and a pull request's review threads under their lines,
     each folding at its head. Changed lines that are only a code comment are drawn at half
     strength in Dim, as code in Show, folded to one row per run in Fold. Read-only.
+  - **File tabs**: a tab whose only pane is a file with no changes, one file per tab, read-only.
+    A 36 px header as the diff's toolbar (`background`, a 1 px `border` line along its bottom):
+    the path from the worktree in Menlo 11 px, its folders `dim` (cut from their start), the
+    name `muted`. Below, the file in herdr's code view on `background`: Menlo 12 px, line
+    numbers, folding, the diff's syntax colors; select and copy, no edits. The first 400,000
+    characters (`… (file truncated)` after them); a binary, missing or unreadable file reads as
+    one 12 px `dim` line on `chrome`.
 - **Review pane**, 320 px (240 to 520), on `chrome`.
   - **Strip**, 40 px, drags the window, a 1 px `border` line along its bottom. At the left
     three views, each a 16 px icon with 8 px padding: Pull requests (followed by the count of
@@ -136,11 +144,15 @@ Terminals are Menlo 13 px with `[6, 8]` padding; the mods' text is the system UI
     commit box: a 28 px message field on `background` (2 px radius, `accent` border while
     typing) and `Commit` (28 px, `solid` on `solid_foreground` when there is a message, else
     `raised` and `dim`).
-  - **Files**: `FILES` with the changed count; a tree of 22 px rows, 12 px text, 12 px of
-    indent per level, a 12 px `dim` icon per row: a chevron for a folder, for a file the Lucide
-    file icon its name calls for (code, JSON, text, image, config, lock, shell script, test,
-    else the plain file). A changed file reads `foreground` with its glyph,
-    an unchanged one `muted`, a deleted one `dim`; a folder shows how many changes it holds.
+  - **Files**: `FILES` with the changed count; a tree of 22 px rows, 13 px text, 12 px of
+    indent per level, a 16 px icon column per row: a 12 px `dim` chevron for a folder, for a
+    file a 20 px Seti glyph (about 11 px of ink, centered in the same 16 px column) tinted by its type, as in VS Code's default file icon theme (Seti's
+    mapping: `.js` yellow, `.ts` blue, `.tsx` React blue, a test orange, `package.json` the red
+    npm, lock files `grey-light`, else the default glyph in `#d4d7d6`; Seti's `grey` and `ignore`
+    lifted to `grey-light` `#6d8086` on the dark panel). A changed file reads `foreground` with
+    its glyph, an unchanged one `muted`, a deleted one `dim`; a folder shows how many changes it
+    holds. The row whose tab is shown (its diff, or its file tab) reads as selected. The panel
+    is only ever the tree: a file opens in the middle, never here.
 - **Folded review**: `»` hides the pane and shows a 40 px rail on `chrome`: `«` in a 40 px cell
   over a `border` line, then the three view icons stacked in 28 px wide buttons, each with its
   count under it.
@@ -217,7 +229,7 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   (a mod pane has no folder), Pull requests follows a terminal in the same tab or space, and
   Changes and Files the space's folder. In Changes, Files or a pull request, clicking a
   changed file opens that file's diff tab, or selects it if it is open. An unchanged file in
-  Files previews in place (`‹` back). The commit box commits everything (`git add -A`) with the
+  Files opens its file tab (named after it), or selects it if it is open. The commit box commits everything (`git add -A`) with the
   message; Esc leaves the field.
 - **Pull requests** are found from the worktree's branches (its HEAD reflog) and from the
   pull requests its Claude Code sessions created (the launcher's hook), checked every 2.5
@@ -245,7 +257,7 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
     resizable:
     - `sidebar-body`, a column: `sidebar-strip` (40 px, `window_drag`, `curfew-sidebar`
       `{role: "strip"}`) and `projects` (`curfew-sidebar`, no props: the list).
-    - `sidebar-foot`, a column, 66 px: `quiet-chip` (30 px, `quiet-hours` `{role: "chip"}`)
+    - `sidebar-foot`, a column, 78 px: `quiet-chip` (42 px, `quiet-hours` `{role: "chip"}`)
       and `sidebar-foot-strip`, a 36 px row: `sidebar-tools` (36 px, `curfew-sidebar`
       `{role: "foot"}`) and `usage` (`curfew-usage`).
   - `work`, a column on `background`: `tabs` (40 px, `window_drag`, `curfew-tabs`) and `main`:
@@ -290,14 +302,20 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
     `nextCommand`, `run("tab.new")` for diff tabs, `TextView.markdown` for comments.
   - `curfew-changes`: a clone of the shipped `changes`; `exec` (git), `watchFolder`, opens and
     selects diff tabs (`tab.new` with `mod: "curfew-diff"`, `tab.select`).
-  - `curfew-files`: a clone of the shipped `files`; the same tree and previews, diff tabs for
-    changed files.
+  - `curfew-files`: a clone of the shipped `files`; the same tree, no previews: diff tabs for
+    changed files, file tabs for the rest (`filetab.js`: `tab.new` with `mod: "curfew-file"`,
+    or `tab.select` when that file's tab is open, remembered in shared `curfew-file.tabs`;
+    `filekey.mjs` holds their props and key as plain functions).
   - `curfew-diff`: a tab's only pane, props `{kind: "changes", folder, file}` or `{kind: "pr",
     repo, number, file}`, opened by the other panels' `difftab.js` (`tab.new` with
     `mod: "curfew-diff"`, or `tab.select` when that file's tab is open); `patch.js` (the diff parser), `comments.js` (which changed lines are
     only comments: the rules and a language table), `model.js` (rows and heights for a virtual
     list), `highlight.js` and `vendor.js` (tokenizer, word diff). `curfew-changes` keeps
     byte-for-byte copies of `patch.js` and `comments.js`.
+  - `curfew-file`: a tab's only pane, props `{folder, file, on?}` (`file` absolute or from
+    `folder`; `on`, another machine's space), opened by curfew-files' `filetab.js`;
+    `readTextFile` once on open (up to 1 MiB; a NUL means binary), `EditorState` read-only
+    and `Editor`; `view.mjs` (the path, the language by extension, the 400,000-character cut).
   - `curfew-usage`: roles chip (default), `card` (popup 340×140), preview (opened with
     `mod.open`); reads `<app home>/curfew/usage.json`; `watchFolder` plus a 30 s timer.
   - `curfew-claude`: the launcher `claude` (sh), `settings.json` (what `--settings` passes),
@@ -314,7 +332,8 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   `herdr-app` (the quiet watcher), `claude` (through the launcher); for Remove project, `hc get`,
   `ps -o pid=,lstart=`, `kill -KILL` (recorded pids only) and `rmdir`.
 - **Art:** 16 px line icons in one style (1.5 px stroke, round caps and joins), most of them
-  drawn for Curfew; the Files chevrons and the Changes icon are herdr's; `layouts/curfew.svg` is the
+  drawn for Curfew; the Files chevrons and the Changes icon are herdr's, the file tab's page
+  is Lucide's `file`; `layouts/curfew.svg` is the
   settings picture.
 
 ## Watch out
@@ -371,7 +390,8 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   `herdr-app do layout.switch '{"name":"curfew"}'` leaves `herdr-app status` with `"errors": []`.
 - The tests pass: `(cd mods/quiet-hours && node --test)`, `(cd mods/curfew-diff && node --test
   tests/*.test.mjs)`, `node --test mods/curfew-claude/*.test.mjs mods/curfew-usage/*.test.mjs
-  mods/curfew-prs/*.test.mjs mods/curfew-sidebar/*.test.mjs mods/curfew-project/*.test.mjs`.
+  mods/curfew-prs/*.test.mjs mods/curfew-sidebar/*.test.mjs mods/curfew-project/*.test.mjs
+  mods/curfew-files/*.test.mjs mods/curfew-file/*.test.mjs` (or all of them: `npm test`).
 - The sidebar shows the TERMINALS and PROJECTS heads, each with its count, and the AGENTS block
   pinned at the bottom; a space in a git repo sits under its repo's head, named after its
   branch until a Claude Code session in it names itself (then that name, and the branch only in
@@ -391,6 +411,9 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   in Changes opens a diff tab named after the file, and clicking it again selects that tab.
 - In the diff tab, `Unified | Split`, `Wrap` and the comment-line menu change the view, and a
   comment-only change reads dimmed by default.
+- Clicking an unchanged file in Files opens a file tab named after it with the plain page icon,
+  the file read-only with line numbers and syntax colors; its row reads selected, and clicking
+  it again selects that tab.
 - A project's `+` and Terminal makes a worktree with an `adjective-adjective-noun` branch under
   `~/.herdr/worktrees/<repo>/`, shown as a "preparing" row, then as a space under the project.
 - A project's `⋯`, Remove project…, the box ticked and Remove closes its spaces, deletes its
