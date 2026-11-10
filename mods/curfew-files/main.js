@@ -1,6 +1,7 @@
 // que's Files view, in herdr: a clone of the shipped `files` panel (the same lazy tree and bounded
 // read-only previews), drawn flat the way que draws it: `FILES` with the changed count in mono,
-// 12px rows, 12px of indent per level and a chevron per directory; a changed file reads bright
+// 12px rows, 12px of indent per level, a chevron per directory and an icon per file by its name
+// (icons.mjs); a changed file reads bright
 // with its glyph, an unchanged one muted, a deleted one faint; a directory counts its changes.
 // The changes are the ones the Changes view lists (base.js: que's base, untracked included), with
 // its glyphs. As in que, a changed file opens its diff as a tab in the middle (curfew-diff), or
@@ -11,6 +12,7 @@ import { v_flex, h_flex, Editor, EditorState } from "gpui-base";
 import { spaces, panes, focused, exec, readTextFile, watchFolder, theme, settings, window } from "herdr";
 import { READ, changedFiles } from "./base.js";
 import { openDiff, shownDiff, diffKey, settle } from "./difftab.js";
+import { fileIcon } from "./icons.mjs";
 
 const MONO = "Menlo";
 // que's glyph tones (Changes'): added good, deleted and conflicted bad, untracked attention, modified neutral.
@@ -173,7 +175,7 @@ export default class Files extends View {
       out.push(h_flex().id(`file-${path}`).h(22).flex_none().pl(4 + depth * 12).pr(8).gap(4).items_center().rounded(4).cursor_pointer()
         .text_size(12).text_color(color).when(on, (e) => e.bg(t.selected)).when(!on, (e) => e.hover(s => s.bg(t.hover)))
         .on_click((_e, cx) => entry.dir ? this.toggle(path, cx) : mark ? openDiff(diffProps(this.root, full, this.on), entry.name) : this.show(path, cx))
-        .child(entry.dir ? svg(`mods/curfew-files/chevron-${open ? "down" : "right"}.svg`).size(12).flex_none().text_color(t.dim) : div().w(12).flex_none())
+        .child(svg(`mods/curfew-files/${entry.dir ? `chevron-${open ? "down" : "right"}` : fileIcon(entry.name)}.svg`).size(12).flex_none().text_color(t.dim))
         .child(div().flex_1().min_w(0).truncate().child(entry.name))
         .when(Boolean(mark) && !entry.dir, el => el.child(div().flex_none().font_family(MONO).text_size(11).font_medium().text_color(TONE(mark, t)).child(mark)))
         .when(tally > 0, el => el.child(div().flex_none().font_family(MONO).text_size(11).text_color(t.dim).child(String(tally)))));

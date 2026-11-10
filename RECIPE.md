@@ -137,7 +137,9 @@ Terminals are Menlo 13 px with `[6, 8]` padding; the mods' text is the system UI
     typing) and `Commit` (28 px, `solid` on `solid_foreground` when there is a message, else
     `raised` and `dim`).
   - **Files**: `FILES` with the changed count; a tree of 22 px rows, 12 px text, 12 px of
-    indent per level, a chevron per folder. A changed file reads `foreground` with its glyph,
+    indent per level, a 12 px `dim` icon per row: a chevron for a folder, for a file the Lucide
+    file icon its name calls for (code, JSON, text, image, config, lock, shell script, test,
+    else the plain file). A changed file reads `foreground` with its glyph,
     an unchanged one `muted`, a deleted one `dim`; a folder shows how many changes it holds.
 - **Folded review**: `»` hides the pane and shows a 40 px rail on `chrome`: `«` in a 40 px cell
   over a `border` line, then the three view icons stacked in 28 px wide buttons, each with its
