@@ -114,13 +114,18 @@ Terminals are Menlo 13 px with `[6, 8]` padding; the mods' text is the system UI
     name `muted`. Below, the file in herdr's code view on `background`: Menlo 12 px, line
     numbers, folding, the diff's syntax colors; select and copy, no edits. The first 400,000
     characters (`… (file truncated)` after them); a binary, missing or unreadable file reads as
-    one 12 px `dim` line on `chrome`.
+    one 12 px `dim` line on `chrome`. A local file is read again when its folder changes, so an
+    edit made elsewhere shows.
 - **Review pane**, 320 px (240 to 520), on `chrome`.
   - **Strip**, 40 px, drags the window, a 1 px `border` line along its bottom. At the left
     three views, each a 16 px icon with 8 px padding: Pull requests (followed by the count of
     open and draft pull requests), Changes (followed by the changed-file count), Files; counts
     in Menlo 11 px `dim`. The shown view is `foreground` with a 1 px `foreground` line under
-    it; the others `dim`, `muted` under the pointer. At the right end `»` (Hide review).
+    it; the others `dim`, `muted` under the pointer. At the right end `»` (Hide review), and
+    just left of it, drawn as `»` (22 px, a 16 px `dim` icon, `foreground` on `hover`), Open in
+    editor: Lucide's `code` (`<>`), its tooltip `Open in <app>` (`Open in Visual
+    Studio Code`) once the editor is known, else `Open in editor`. Not shown for a space on
+    another machine, nor on the folded rail.
   - **Pull requests**: a 34 px head, `PULL REQUESTS` (Menlo 10 px medium `#c9c9c9`, the tone of every head's label: the
     section heads, the review pane's, the cards' and the dialogs') then
     `3 open · 1 failing` (Menlo 11 px; `failing` in `#ef2929`) and a 22 px refresh at the right.
@@ -231,6 +236,18 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   changed file opens that file's diff tab, or selects it if it is open. An unchanged file in
   Files opens its file tab (named after it), or selects it if it is open. The commit box commits everything (`git add -A`) with the
   message; Esc leaves the field.
+- **Open in editor:** opens the folder Changes and Files show, at its git top level (the
+  folder itself outside a repo), in the editor: `open -a <app> <folder> [<file>]`, the file
+  being the shown tab's when it is a file tab or a worktree diff tab (never a pull request's)
+  and lies inside the folder, so the editor opens the project with that file in front. The
+  editor is found once per run, on the strip's first draw: settings.json's `curfew.editor` (an
+  app name or path, `{ "curfew": { "editor": "Zed" } }`) wins; else empty probe files in a
+  `mktemp -d` folder (`.ts .py .rs .go .c .sh .json .md .txt`, not `.js`, often a browser's)
+  are put to macOS (LaunchServices, `NSWorkspace URLForApplicationToOpenURL`, one `osascript
+  -l JavaScript`), then removed, and the app that opens the most wins, a tie to the earliest
+  extension; browsers (Safari, Chrome, Edge, Firefox, Arc, Brave), runners (Terminal, iTerm,
+  Python Launcher) and QuickTime never, TextEdit only when no other app answered. None: plain
+  `open <file or folder>`. An `open` that fails posts an error toast with its message.
 - **Pull requests** are found from the worktree's branches (its HEAD reflog) and from the
   pull requests its Claude Code sessions created (the launcher's hook), checked every 2.5
   minutes and on refresh (the icon turns while it checks); the strip's count follows the same
@@ -294,7 +311,12 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   - `curfew-pane`: the pane header; `panes`, `props().pane`.
   - `curfew-bar`: roles `bar` (default) and `rail`; `run` (`layout.select` on `review-body`,
     `layout.show`/`layout.hide` on `review` and `review-rail`), `exec` (git; `node
-    mods/curfew-prs/check.mjs <folder>` for the count), `watchFolder`, `shared` (`curfew-prs`).
+    mods/curfew-prs/check.mjs <folder>` for the count; `mktemp`, `touch`, `osascript`, `rm -f`,
+    `rmdir` once to find the editor, `open` for it), `watchFolder`, `shared` (`curfew-prs`,
+    and `curfew-file.tabs` and `curfew-diff.tabs` read for the shown tab's file), `settings`
+    and `readTextFile` (settings.json's `curfew.editor`: `settings()` holds only herdr's own
+    keys), `notify`. `editor.mjs` holds the editor's rules as plain functions (the winner, its
+    name, the shown file from a tab's key, `open`'s arguments).
   - `curfew-prs`: `main.js` draws; `core.mjs` holds the rules (plain
     functions); `engine.mjs` runs git and gh and keeps `<app home>/curfew/pr-store/`;
     `check.mjs` is the same check under node; `where.mjs` the followed folder. `exec`,
@@ -314,7 +336,7 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
     byte-for-byte copies of `patch.js` and `comments.js`.
   - `curfew-file`: a tab's only pane, props `{folder, file, on?}` (`file` absolute or from
     `folder`; `on`, another machine's space), opened by curfew-files' `filetab.js`;
-    `readTextFile` once on open (up to 1 MiB; a NUL means binary), `EditorState` read-only
+    `readTextFile` on open and on each `watchFolder` change of the file's folder (up to 1 MiB; a NUL means binary), `EditorState` read-only
     and `Editor`; `view.mjs` (the path, the language by extension, the 400,000-character cut).
   - `curfew-usage`: roles chip (default), `card` (popup 340×140), preview (opened with
     `mod.open`); reads `<app home>/curfew/usage.json`; `watchFolder` plus a 30 s timer.
@@ -329,11 +351,13 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   `picker` (search), `worktree` (Named worktree…, Open worktree…), and
   `mods/workspace-chrome/clock.svg`, `icons/shell.svg`.
 - **Programs:** `git`, `gh`, `node`, `sh` (`basename "$SHELL"`, folder listings), `hc` and
-  `herdr-app` (the quiet watcher), `claude` (through the launcher); for Remove project, `hc get`,
+  `herdr-app` (the quiet watcher), `claude` (through the launcher); for Open in editor,
+  `mktemp`, `touch`, `osascript`, `rm -f`, `rmdir` and `open`; for Remove project, `hc get`,
   `ps -o pid=,lstart=`, `kill -KILL` (recorded pids only) and `rmdir`.
 - **Art:** 16 px line icons in one style (1.5 px stroke, round caps and joins), most of them
   drawn for Curfew; the Files chevrons and the Changes icon are herdr's, the file tab's page
-  is Lucide's `file`; `layouts/curfew.svg` is the
+  is Lucide's `file`, Open in editor is Lucide's `code` (`<>`) (its stroke set to
+  1.5 px at 16 px); `layouts/curfew.svg` is the
   settings picture.
 
 ## Watch out
@@ -424,5 +448,7 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
 - After a launcher session's first reply, `<app home>/curfew/usage.json` exists and the foot
   reads `5h n%`.
 - `»` folds the review pane to the 40 px rail; `«` brings it back.
+- The icon left of `»` reads `Open in Visual Studio Code` (where that is the default app for
+  source files) and opens the worktree in one editor window, a file tab's file in front.
 - The quiet chip shows `Quiet 30m 1h 2h` and `off`; `30m` switches to the dim board, whose rows
   read each session's name and its project, and `end quiet` comes back.

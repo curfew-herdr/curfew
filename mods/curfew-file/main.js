@@ -6,12 +6,12 @@
 // A 36px header as the diff tab's toolbar: the path from the folder in Menlo 11, its folders `dim`
 // and cut from their start so the name (`muted`) stays whole, the whole path the tooltip. Under it
 // the file in herdr's Editor, read-only (select and copy), highlighted by its extension
-// (view.mjs) in the diff tab's colors. Read once, when the tab opens, as Files' in-panel preview
-// was: readTextFile's 1 MiB, the first 400,000 characters shown; a missing, binary or unreadable
+// (view.mjs) in the diff tab's colors. Read when the tab opens and again when the file's folder
+// changes on this machine (an edit in another editor shows here): readTextFile's 1 MiB, the first 400,000 characters shown; a missing, binary or unreadable
 // file says so in dim text.
 import { View, div } from "gpui-kit";
 import { v_flex, h_flex, Editor, EditorState } from "gpui-base";
-import { props, readTextFile, theme } from "herdr";
+import { props, readTextFile, watchFolder, theme } from "herdr";
 import { absoluteFile, shownPath, languageOf, textOf, UNREADABLE } from "./view.mjs";
 
 const MONO = "Menlo", BAR_H = 36;
@@ -41,20 +41,45 @@ export default class CurfewFile extends View {
     this.file = absoluteFile(folder, p.file);
     this.path = shownPath(folder, p.file);
     this.code = null; this.error = null;
-    if (this.file) this.load(cx);
+    if (this.file) { this.load(cx); this.watch(cx); }
   }
 
   close() { this.closed = true; this.code?.release(); this.code = null; }
 
+  // Reads the file and shows it: the first read makes the editor, a later one (the file changed
+  // on disk) replaces its text only where the text differs, so a tab left alone stays as it is.
   load(cx) {
+    if (this.loading) { this.again = true; return; }
+    this.loading = true;
     cx.spawn(async (cx) => {
       try {
         const shown = textOf(await readTextFile(this.file, { on: this.on }));
         if (this.closed) return;
-        if (shown.error) this.error = shown.error;
+        if (shown.error) { this.error = shown.error; this.code?.release(); this.code = null; this.value = null; }
+        else if (this.code) { if (shown.value !== this.value) this.code.set_value(shown.value); }
         else this.code = EditorState.new({ language: languageOf(this.file), readonly: true, value: shown.value, font_family: MONO, font_size: 12, syntax: syntax(theme()) });
-      } catch { this.error = UNREADABLE; }
-      finally { if (!this.closed) cx.notify(); }
+        if (!shown.error) { this.value = shown.value; this.error = null; }
+      } catch { if (!this.code) this.error = UNREADABLE; }
+      finally {
+        this.loading = false;
+        if (!this.closed) cx.notify();
+        if (this.again && !this.closed) { this.again = false; this.load(cx); }
+      }
+    });
+  }
+
+  // The file's folder, watched while the tab is open (this machine's files): a change under it
+  // reads the file again. A folder herdr won't watch leaves the tab as read when it opened.
+  watch(cx) {
+    if (this.on) return;
+    const dir = this.file.slice(0, Math.max(this.file.lastIndexOf("/"), 1));
+    cx.spawn(async (cx) => {
+      try {
+        while (!this.closed) {
+          await watchFolder(dir);
+          if (!this.closed) this.load(cx);
+        }
+      } catch {}
     });
   }
 

@@ -19,7 +19,9 @@ Curfew turns herdr into a calm place to run coding agents in parallel. The sideb
 terminals, your projects and your agents, the ones waiting on you first, and a project's `+`
 starts a new task in its own worktree and branch, with Claude Code or any other agent herdr
 knows. The pane on the right follows each task: its pull requests and their checks, its
-changes, and its files. Click a changed file and its diff opens as a tab, with code comments
+changes, and its files, and a button at its top opens the task's worktree in your code editor
+(macOS's default app for source files, or the one `curfew.editor` in herdr's settings.json
+names). Click a changed file and its diff opens as a tab, with code comments
 dimmed or folded out of the way; any other file opens as a tab too, read-only. Claude Code's
 5-hour and weekly usage sits at the bottom of the sidebar.
 
