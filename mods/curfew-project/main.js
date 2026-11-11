@@ -16,7 +16,7 @@
 
 import { View, div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, props, run, closeOverlay, shared, setShared, home, nextCommand } from "herdr";
+import { layout, theme, props, run, closeOverlay, shared, setShared, home, nextCommand } from "herdr";
 import { removeWords } from "./words.mjs";
 
 // que's --fg-secondary (#c9c9c9) lies between foreground and muted; the theme has no name for it.
@@ -30,6 +30,17 @@ const ACTION = "curfew-project-action";
 const REMOVE = "curfew-remove-project";
 const STALE = 30_000; // the sidebar drops older requests, so they go when a new one is added
 const MONO = "Menlo";
+// The labels' font: a layout names its own with "label_font" in any block's props (sumi-work
+// does); without one they are Menlo, as in Curfew.
+const labelFont = () => {
+  const seek = (node) => {
+    const own = node?.content?.props?.label_font;
+    if (typeof own === "string" && own) return own;
+    for (const child of node?.children ?? []) { const found = seek(child); if (found) return found; }
+    return null;
+  };
+  try { return seek(layout()) ?? MONO; } catch { return MONO; }
+};
 const MENU = [
   ["new", "plus", "New workspace…"],
   ["remove", "close", "Remove project…"],
@@ -147,7 +158,7 @@ export default class CurfewProject extends View {
     const busy = Boolean(p?.busy);
     const gap = (h) => div().h(h).flex_none();
     const hairline = () => div().h(1).flex_none().bg(t.border);
-    const tag = (text, color) => div().flex_none().font_family(MONO).text_size(11).text_color(color).child(text);
+    const tag = (text, color) => div().flex_none().font_family(labelFont()).text_size(11).text_color(color).child(text);
     // quiet hours' buttons; Remove in the bad tone, faded while a workspace is being made.
     const button = (id, text, danger, action) => {
       const off = danger && busy;
@@ -179,8 +190,8 @@ export default class CurfewProject extends View {
       .when(Boolean(w.outside), (el) => el.child(div().pt(2).text_size(12.5).text_color(t.muted).child(w.outside)));
     const card = v_flex().w_full().flex_none().bg(t.popover).border(1).border_color(t.input).rounded(2).px(20).pt(16).pb(16).text_size(13).text_color(t.foreground)
       .child(h_flex().h(18).flex_none().justify_between().items_center()
-        .child(div().font_family(MONO).text_size(10.5).text_color(secondary(t)).child("REMOVE PROJECT"))
-        .child(div().font_family(MONO).text_size(10.5).text_color(t.dim).child("esc")))
+        .child(div().font_family(labelFont()).text_size(10.5).text_color(secondary(t)).child("REMOVE PROJECT"))
+        .child(div().font_family(labelFont()).text_size(10.5).text_color(t.dim).child("esc")))
       .child(gap(12))
       .child(div().min_w(0).truncate().text_size(14).font_semibold().child(w.title))
       .child(gap(8))

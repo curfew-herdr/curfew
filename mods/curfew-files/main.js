@@ -12,7 +12,7 @@
 // The panel shows only the tree.
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { spaces, panes, focused, exec, watchFolder, theme, window } from "herdr";
+import { spaces, panes, focused, exec, watchFolder, layout, theme, window } from "herdr";
 import { READ, changedFiles } from "./base.js";
 import { openDiff, shownDiff, diffKey, settle } from "./difftab.js";
 import { openFile, selectFile, shownFile, fileKey, settleFiles } from "./filetab.js";
@@ -20,6 +20,17 @@ import { fileProps } from "./filekey.mjs";
 import { fileIcon } from "./icons.mjs";
 
 const MONO = "Menlo";
+// The labels' font: a layout names its own with "label_font" in any block's props (sumi-work
+// does); without one they are Menlo, as in Curfew.
+const labelFont = () => {
+  const seek = (node) => {
+    const own = node?.content?.props?.label_font;
+    if (typeof own === "string" && own) return own;
+    for (const child of node?.children ?? []) { const found = seek(child); if (found) return found; }
+    return null;
+  };
+  try { return seek(layout()) ?? MONO; } catch { return MONO; }
+};
 // que's glyph tones (Changes'): added good, deleted and conflicted bad, untracked attention, modified neutral.
 const TONE = (mark, t) => (mark === "A" ? t.done : mark === "D" || mark === "U" ? t.ansi9 : mark === "?" ? t.blocked : t.idle);
 
@@ -166,8 +177,8 @@ export default class Files extends View {
           ? svg(`mods/curfew-files/seti/${glyph.icon}.svg`).size(20).flex_none().text_color(glyph.color)
           : svg(`mods/curfew-files/chevron-${open ? "down" : "right"}.svg`).size(12).flex_none().text_color(t.dim)))
         .child(div().flex_1().min_w(0).truncate().child(entry.name))
-        .when(Boolean(mark) && !entry.dir, el => el.child(div().flex_none().font_family(MONO).text_size(11).font_medium().text_color(TONE(mark, t)).child(mark)))
-        .when(tally > 0, el => el.child(div().flex_none().font_family(MONO).text_size(11).text_color(t.dim).child(String(tally)))));
+        .when(Boolean(mark) && !entry.dir, el => el.child(div().flex_none().font_family(labelFont()).text_size(11).font_medium().text_color(TONE(mark, t)).child(mark)))
+        .when(tally > 0, el => el.child(div().flex_none().font_family(labelFont()).text_size(11).text_color(t.dim).child(String(tally)))));
       if (entry.dir && open) this.rows(path, depth + 1, out, t, marks, shown);
     }
     return out;
@@ -180,14 +191,14 @@ export default class Files extends View {
     // que's --fg-secondary (#c9c9c9) lies between foreground and muted; the theme has no name for it.
     const ch = (c, i) => parseInt(c.slice(1 + 2 * i, 3 + 2 * i), 16);
     this.secondary = "#" + [0, 1, 2].map((i) => Math.round(ch(t.foreground, i) * 0.55 + ch(t.muted, i) * 0.45).toString(16).padStart(2, "0")).join("");
-    const mono = (text, color) => div().font_family(MONO).text_size(11).text_color(color).child(text);
+    const mono = (text, color) => div().font_family(labelFont()).text_size(11).text_color(color).child(text);
     return v_flex().id("files").size_full().min_h(0).bg(t.chrome).text_color(t.foreground).text_size(13)
       .child(h_flex().flex_none().px(12).pt(12).pb(6).gap(8).items_center()
-        .child(div().flex_none().font_family(MONO).text_size(10).font_medium().text_color(this.secondary).child("FILES"))
+        .child(div().flex_none().font_family(labelFont()).text_size(10).font_medium().text_color(this.secondary).child("FILES"))
         .child(div().flex_1())
         .child(mono([this.root?.split(/[\\/]/).pop(), marks.length ? `${marks.length} changed` : ""].filter(Boolean).join(" · "), t.dim)))
       .child(v_flex().id("files-tree").flex_1().min_h(0).overflow_y_scrollbar().px(8).py(4).children(this.rows("", 0, [], t, marks, { diff: shownDiff(), file: shownFile() }))
         .when(Boolean(this.error) || !this.entries.get("")?.length, el => el.child(div().px(4).py(8).text_size(12).text_color(t.dim).child(this.error || (this.loading ? "Loading files…" : this.root ? "No files." : "No folder."))))
-        .when(this.limited, el => el.child(div().px(4).py(8).font_family(MONO).text_size(11).text_color(t.dim).child("500 a folder, 5,000 in all"))));
+        .when(this.limited, el => el.child(div().px(4).py(8).font_family(labelFont()).text_size(11).text_color(t.dim).child("500 a folder, 5,000 in all"))));
   }
 }

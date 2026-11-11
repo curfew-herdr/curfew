@@ -29,7 +29,7 @@
 
 import { View, div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { spaces, panes, run, openOverlay, closeOverlay, exec, hc, theme, watchFolder, pickFolder, props, knownAgents, appHome, home, readTextFile, shared, setShared, notify, nextCommand, window as appWindow } from "herdr";
+import { spaces, panes, run, openOverlay, closeOverlay, exec, hc, layout, theme, watchFolder, pickFolder, props, knownAgents, appHome, home, readTextFile, shared, setShared, notify, nextCommand, window as appWindow } from "herdr";
 import * as fs from "fs/promises";
 import { Failure, prepareWorkspace, randomName, worktreeRoot } from "./workspace.mjs";
 import { isClaude, nextTitles, paneTitle, cleanKept, runningName } from "./titles.mjs";
@@ -40,6 +40,17 @@ import { planRemoval, recordProcesses, stopProcesses, deleteWorktrees } from "./
 const TITLES = "curfew-sidebar.titles";
 
 const MONO = "Menlo";
+// The labels' font: a layout names its own with "label_font" in any block's props (sumi-work
+// does); without one they are Menlo, as in Curfew.
+const labelFont = () => {
+  const seek = (node) => {
+    const own = node?.content?.props?.label_font;
+    if (typeof own === "string" && own) return own;
+    for (const child of node?.children ?? []) { const found = seek(child); if (found) return found; }
+    return null;
+  };
+  try { return seek(layout()) ?? MONO; } catch { return MONO; }
+};
 // A section head's label: the bare name.
 const sectionLabel = (name) => name;
 const icon = (name, size = 14) => svg(`mods/curfew-sidebar/${name}.svg`).size(size).flex_none();
@@ -532,7 +543,7 @@ export default class QueSidebar extends View {
   }
 
   mono(text, color) {
-    return div().flex_none().font_family(MONO).text_size(11).text_color(color).child(text);
+    return div().flex_none().font_family(labelFont()).text_size(11).text_color(color).child(text);
   }
 
   // A section is open unless its head was folded.
@@ -553,7 +564,7 @@ export default class QueSidebar extends View {
       .on_click((_e, cx) => this.fold(`section:${key}`, cx))
       .when(hot, (el) => el.child(h_flex().w(16).flex_none().justify_center().text_color(t.muted)
         .child(icon(open ? "chevron-down" : "chevron-right"))))
-      .child(div().flex_1().font_family(MONO).text_size(10).font_medium().text_color(between(t.foreground, t.muted, 0.45)).child(sectionLabel(label)))
+      .child(div().flex_1().font_family(labelFont()).text_size(10).font_medium().text_color(between(t.foreground, t.muted, 0.45)).child(sectionLabel(label)))
       .child(this.mono(String(count), t.dim))
       .when(Boolean(button), (el) => el.child(button));
   }
@@ -575,7 +586,7 @@ export default class QueSidebar extends View {
         .child(icon(hot ? (open ? "chevron-down" : "chevron-right") : "folder")))
       .child(div().flex_1().min_w(0).truncate().text_size(12).font_medium()
         .text_color(hot ? between(t.foreground, t.muted, 0.45) : t.muted).child(p.name))
-      .when(!open && !hot, (el) => el.child(h_flex().flex_none().font_family(MONO).text_size(11).text_color(t.dim)
+      .when(!open && !hot, (el) => el.child(h_flex().flex_none().font_family(labelFont()).text_size(11).text_color(t.dim)
         .when(done > 0, (c) => c.child(div().text_color(t.done).child(`${done} done`)).child(div().child(" · ")))
         .child(String(p.rows.length))))
       .when(hot, (el) => el.child(this.ghost(`new-${p.repo}`, "plus", "New workspace: a terminal or an agent in a new worktree", t, () => this.newWorkspace(p))))
@@ -606,7 +617,7 @@ export default class QueSidebar extends View {
         .child("×")));
     if (!failed) return row;
     return v_flex().flex_none().child(row)
-      .child(div().id(`${id}-error`).pl(30).pr(8).pb(4).font_family(MONO).text_size(11).text_color(t.ansi9).truncate().tooltip(job.error).child(job.error));
+      .child(div().id(`${id}-error`).pl(30).pr(8).pb(4).font_family(labelFont()).text_size(11).text_color(t.ansi9).truncate().tooltip(job.error).child(job.error));
   }
 
   // que's titles: each Claude session's name for its space, saved when one changes.

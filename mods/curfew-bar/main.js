@@ -21,6 +21,17 @@ import { READ, changedFiles } from "./base.js";
 import { PROBES, PROBE_SCRIPT, probeAnswers, appName, editorSetting, chooseEditor, shownPath, openArgs } from "./editor.mjs";
 
 const MONO = "Menlo";
+// The labels' font: a layout names its own with "label_font" in any block's props (sumi-work
+// does); without one they are Menlo, as in Curfew.
+const labelFont = () => {
+  const seek = (node) => {
+    const own = node?.content?.props?.label_font;
+    if (typeof own === "string" && own) return own;
+    for (const child of node?.children ?? []) { const found = seek(child); if (found) return found; }
+    return null;
+  };
+  try { return seek(layout()) ?? MONO; } catch { return MONO; }
+};
 const PANE = "review", RAIL = "review-rail", STACK = "review-body";
 // The curfew-prs mod's: its check, its shared signal, and its tick (2.5 minutes).
 const PRS_CHECK = () => `${appHome()}/mods/curfew-prs/check.mjs`, PRS_SIGNAL = "curfew-prs", PRS_EVERY = 150_000;
@@ -239,7 +250,7 @@ export default class QueReview extends View {
 
   countOf(view, t) {
     const n = view === "changes" ? this.count : view === "prs" ? this.prCount : undefined;
-    return n === undefined ? null : div().font_family(MONO).text_size(11).text_color(t.dim).child(String(n));
+    return n === undefined ? null : div().font_family(labelFont()).text_size(11).text_color(t.dim).child(String(n));
   }
 
   bar(t) {
