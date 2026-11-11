@@ -6,15 +6,16 @@
 // with its glyph, an unchanged one muted, a deleted one faint; a directory counts its changes.
 // The changes are the ones the Changes view lists (base.js: que's base, untracked included), with
 // its glyphs. As in que, a changed file opens its diff as a tab in the middle (curfew-diff), or
-// selects its tab where it is open (difftab.js); an unchanged one opens there read-only as a file
-// tab (curfew-file), or selects its tab (filetab.js). A row reads selected while its tab shows.
+// selects its tab where it is open (difftab.js); an unchanged one opens there as a file tab
+// (curfew-file), or selects its tab (filetab.js). A changed file whose file tab is open (a save
+// there changed it) selects that tab, not its diff. A row reads selected while its tab shows.
 // The panel shows only the tree.
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { spaces, panes, focused, exec, watchFolder, theme, window } from "herdr";
 import { READ, changedFiles } from "./base.js";
 import { openDiff, shownDiff, diffKey, settle } from "./difftab.js";
-import { openFile, shownFile, fileKey, settleFiles } from "./filetab.js";
+import { openFile, selectFile, shownFile, fileKey, settleFiles } from "./filetab.js";
 import { fileProps } from "./filekey.mjs";
 import { fileIcon } from "./icons.mjs";
 
@@ -158,7 +159,9 @@ export default class Files extends View {
       const glyph = entry.dir ? null : fileIcon(entry.name);
       out.push(h_flex().id(`file-${path}`).h(22).flex_none().pl(4 + depth * 12).pr(8).gap(4).items_center().rounded(4).cursor_pointer()
         .text_size(13).text_color(color).when(on, (e) => e.bg(t.selected)).when(!on, (e) => e.hover(s => s.bg(t.hover)))
-        .on_click((_e, cx) => entry.dir ? this.toggle(path, cx) : mark ? openDiff(diffProps(this.root, full, this.on), entry.name) : openFile(fileProps(this.root, full, this.on), entry.name))
+        .on_click((_e, cx) => entry.dir ? this.toggle(path, cx)
+          : mark ? selectFile(fileProps(this.root, full, this.on)) || openDiff(diffProps(this.root, full, this.on), entry.name)
+          : openFile(fileProps(this.root, full, this.on), entry.name))
         .child(h_flex().size(16).flex_none().items_center().justify_center().child(glyph
           ? svg(`mods/curfew-files/seti/${glyph.icon}.svg`).size(20).flex_none().text_color(glyph.color)
           : svg(`mods/curfew-files/chevron-${open ? "down" : "right"}.svg`).size(12).flex_none().text_color(t.dim)))

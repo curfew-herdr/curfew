@@ -4,7 +4,7 @@ Run coding agents side by side, each in its own git worktree, and log off while 
 near-black window with a sidebar of terminals, git projects and agents, one 40 px tab row over
 hairline-split terminals, and a review pane on the right that switches between the session's
 pull requests, its changes and its files. Diffs open as tabs in the middle with code comments
-dimmed or folded (other files open there read-only), the sidebar foot shows Claude Code's
+dimmed or folded (other files open there to edit), the sidebar foot shows Claude Code's
 5-hour and weekly usage, and quiet hours
 swap the window for a dim board at night.
 
@@ -100,22 +100,39 @@ Terminals are Menlo 13 px with `[6, 8]` padding; the mods' text is the system UI
     hairlines). In a split tab, the pane with the keyboard has a 1 px `accent` line along its
     top; the others' top line is `background`. A single pane has no line.
   - **Diff tabs**: a tab whose only pane is the diff, one file per tab. A toolbar across the
-    top: the file's path, `+a −d` (`done` and `#ef2929`), `Unified | Split`, `Wrap`,
-    `Whitespace`, the comment-line mode (`Comments dimmed ▾`: Dim (the default), Show (as
-    code), Fold (one row per run of comment lines), remembered per project), and on a pull
-    request's diff the review-thread controls (show or hide the threads, or only the hunks
-    that have them). Below, the hunks in Menlo with line numbers, syntax colors, the changed
-    words of a changed pair marked, and a pull request's review threads under their lines,
-    each folding at its head. Changed lines that are only a code comment are drawn at half
-    strength in Dim, as code in Show, folded to one row per run in Fold. Read-only.
-  - **File tabs**: a tab whose only pane is a file with no changes, one file per tab, read-only.
+    top: the file's path, `+a −d` (`done` and `#ef2929`), then at the right, first, `Edit`
+    while the tab is a worktree's file on this machine, under the tab's folder, and the diff
+    has read it and doesn't delete it (never on a pull request's diff): a 20 px word button
+    as the toolbar's others, Menlo 11 px `muted` in a 1 px `border` outline with 2 px corners,
+    `hover` and `foreground` under the pointer, tooltip `Edit this file`. Then `Unified |
+    Split`, `Wrap`, `Whitespace`, the comment-line mode (`Comments dimmed ▾`: Dim (the
+    default), Show (as code), Fold (one row per run of comment lines), remembered per
+    project), and on a pull request's diff the review-thread controls (show or hide the
+    threads, or only the hunks that have them). Below, the hunks in Menlo with line numbers,
+    syntax colors, the changed words of a changed pair marked, and a pull request's review
+    threads under their lines, each folding at its head. Changed lines that are only a code
+    comment are drawn at half strength in Dim, as code in Show, folded to one row per run in
+    Fold. Read-only.
+  - **File tabs**: a tab whose only pane is one file, one file per tab, edited in place.
     A 36 px header as the diff's toolbar (`background`, a 1 px `border` line along its bottom):
     the path from the worktree in Menlo 11 px, its folders `dim` (cut from their start), the
     name `muted`. Below, the file in herdr's code view on `background`: Menlo 12 px, line
-    numbers, folding, the diff's syntax colors; select and copy, no edits. The first 400,000
+    numbers, folding, the diff's syntax colors. The first 400,000
     characters (`… (file truncated)` after them); a binary, missing or unreadable file reads as
     one 12 px `dim` line on `chrome`. A local file is read again when its folder changes, so an
     edit made elsewhere shows.
+    The file takes edits when it can be saved back whole: on this machine, under the tab's
+    folder, valid UTF-8 text under 1 MiB and 400,000 characters, its line endings kept by the
+    code view. Any other file reads `Read-only` at the header's right (Menlo 11 px `dim`, the
+    reason its tooltip) and is select and copy only. With edits, the header's right shows
+    `Save` (a 22 px word button, `dim`, `hover` and `foreground` under the pointer; tooltip
+    `Save (⌘S)`), ⌘S saves too, and the tab's `×` is a 6 px `muted` dot until the pointer
+    comes. A save writes only while the file is still what the tab last read. When the file
+    changes on disk under edits, the edits stay and the header reads `Changed on disk` with
+    `Reload` (the file as it is now, the edits dropped) and `Overwrite` (the edits saved over
+    it); ⌘S writes nothing then. Closing a tab saves its edits, since herdr closes without
+    asking; a save that fails, or a tab closed while `Changed on disk`, posts an error toast
+    `Could not save <name>`.
 - **Review pane**, 320 px (240 to 520), on `chrome`.
   - **Strip**, 40 px, drags the window, a 1 px `border` line along its bottom. At the left
     three views, each a 16 px icon with 8 px padding: Pull requests (followed by the count of
@@ -234,7 +251,9 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   (a mod pane has no folder), Pull requests follows a terminal in the same tab or space, and
   Changes and Files the space's folder. In Changes, Files or a pull request, clicking a
   changed file opens that file's diff tab, or selects it if it is open. An unchanged file in
-  Files opens its file tab (named after it), or selects it if it is open. The commit box commits everything (`git add -A`) with the
+  Files opens its file tab (named after it), or selects it if it is open; a changed file whose
+  file tab is open selects that tab, not its diff. A diff tab's `Edit` opens its file in its
+  file tab, or selects it. The commit box commits everything (`git add -A`) with the
   message; Esc leaves the field.
 - **Open in editor:** opens the folder Changes and Files show, at its git top level (the
   folder itself outside a repo), in the editor: `open -a <app> <folder> [<file>]`, the file
@@ -335,11 +354,17 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
     `mod: "curfew-diff"`, or `tab.select` when that file's tab is open); `patch.js` (the diff parser), `comments.js` (which changed lines are
     only comments: the rules and a language table), `model.js` (rows and heights for a virtual
     list), `highlight.js` and `vendor.js` (tokenizer, word diff). `curfew-changes` keeps
-    byte-for-byte copies of `patch.js` and `comments.js`.
+    byte-for-byte copies of `patch.js` and `comments.js`. `Edit` opens and selects file tabs
+    through its copies of curfew-files' `filetab.js` and `filekey.mjs` (`tab.new` with
+    `mod: "curfew-file"`, or `tab.select`); `edit.mjs` holds which file, as a plain function.
   - `curfew-file`: a tab's only pane, props `{folder, file, on?}` (`file` absolute or from
     `folder`; `on`, another machine's space), opened by curfew-files' `filetab.js`;
-    `readTextFile` on open and on each `watchFolder` change of the file's folder (up to 1 MiB; a NUL means binary), `EditorState` read-only
-    and `Editor`; `view.mjs` (the path, the language by extension, the 400,000-character cut).
+    `readTextFile` on open and on each `watchFolder` change of the file's folder (up to 1 MiB; a NUL means binary), `EditorState`
+    (read-only where the file can't be saved back whole) and `Editor`; saves with
+    `writeTextFile(path, text, expected)`, `expected` the text last read; its unsaved mark in
+    shared `curfew-file.dirty` (file key -> true), which `curfew-tabs` reads (`dirty.mjs`);
+    `view.mjs` (the path, the language by extension, the 400,000-character cut, what may be
+    edited, and what a read or a refused save does to a tab with edits).
   - `curfew-usage`: roles chip (default), `card` (popup 340×140), preview (opened with
     `mod.open`); reads `<app home>/curfew/usage.json`; `watchFolder` plus a 30 s timer.
   - `curfew-claude`: the launcher `claude` (sh), `settings.json` (what `--settings` passes),
@@ -373,7 +398,8 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   origin's default branch, else the local one, to the working tree) in curfew-changes, -bar,
   -files and -diff, so the list, the strip's count, the tree's marks and a diff tab agree;
   `difftab.js` (one tab per file; an open one is selected, remembered in shared
-  `curfew-diff.tabs`) in curfew-changes, -files and -prs; `patch.js` and `comments.js` in
+  `curfew-diff.tabs`) in curfew-changes, -files and -prs; `filetab.js` and `filekey.mjs` (one
+  file tab per file) in curfew-files and -diff; `patch.js` and `comments.js` in
   curfew-diff and curfew-changes. `curfew-bar` runs `curfew-prs`' `check.mjs` with node for its
   count, sharing the stored check through `pr-store/` (a check younger than 100 s is adopted,
   not repeated). The rule for a session's name (`sessionLabel`, `capTitle`) is in both
@@ -438,8 +464,12 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
 - In the diff tab, `Unified | Split`, `Wrap` and the comment-line menu change the view, and a
   comment-only change reads dimmed by default.
 - Clicking an unchanged file in Files opens a file tab named after it with the plain page icon,
-  the file read-only with line numbers and syntax colors; its row reads selected, and clicking
+  the file with line numbers and syntax colors; its row reads selected, and clicking
   it again selects that tab.
+- Typing in a file tab shows `Save` in its header and a dot on its tab; ⌘S or `Save` writes the
+  file and both go. Changing the file elsewhere while it has edits shows `Changed on disk`
+  with `Reload` and `Overwrite`. Closing the tab with edits saves them. `Edit` in a diff tab's
+  toolbar opens that diff's file in a file tab.
 - A project's `+` and Terminal makes a worktree with an `adjective-adjective-noun` branch under
   `~/.herdr/worktrees/<repo>/`, shown as a "preparing" row, then as a space under the project.
 - A project's `⋯`, Remove project…, the box ticked and Remove closes its spaces, deletes its

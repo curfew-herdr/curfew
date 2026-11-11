@@ -2,11 +2,14 @@
 // program running in it (claude, zsh, node); the active one is bright with an accent underline;
 // its × waits for the pointer (half strength on the active tab); + is always there; split beside
 // and split below sit at the right end. A tab whose agent works, needs you or finished unseen
-// carries a 5px dot in that tone.
+// carries a 5px dot in that tone. A file tab with edits not saved (curfew-file's shared
+// `curfew-file.dirty`, dirty.mjs) carries a 6px `muted` dot in its ×'s place until the pointer
+// comes, then the ×.
 
 import { View, div, svg, PathBuilder } from "gpui-kit";
 import { h_flex } from "gpui-base";
-import { spaces, panes, run, exec, openOverlay, theme, layout, settings, window as appWindow } from "herdr";
+import { spaces, panes, run, exec, openOverlay, theme, layout, settings, shared, window as appWindow } from "herdr";
+import { unsaved } from "./dirty.mjs";
 
 const icon = (name) => svg(`mods/curfew-tabs/${name}.svg`).size(16).flex_none();
 const LOUD = new Set(["working", "blocked", "done"]);
@@ -67,7 +70,7 @@ export default class QueTabs extends View {
   }
 
   render() {
-    const t = theme(), ps = panes();
+    const t = theme(), ps = panes(), files = shared("curfew-file.tabs"), dirty = shared("curfew-file.dirty");
     const space = spaces().find((s) => s.active);
     const secondary = between(t.foreground, t.muted, 0.45);
     const stop = (_e, cx) => cx.stop_propagation();
@@ -80,7 +83,8 @@ export default class QueTabs extends View {
       .text_color(t.dim).hover((s) => s.bg(t.hover).text_color(t.foreground)).tooltip(text)
       .on_mouse_down("left", stop).on_click(action).child(icon(name));
     const tab = (c) => {
-      const hot = this.hover === c.id, mark = modIcon(c, ps);
+      // Unsaved: the dot holds the ×'s room (the × kept, unseen, so the tab keeps its width).
+      const hot = this.hover === c.id, mark = modIcon(c, ps), dot = !hot && unsaved(c.id, files, dirty);
       return h_flex().id(`tab-${c.id}`).relative().h_full().flex_none().items_center().text_size(13)
         .text_color(c.active ? t.foreground : hot ? secondary : t.muted)
         .tooltip(tip(c, ps))
@@ -98,10 +102,12 @@ export default class QueTabs extends View {
           .when(Boolean(mark), (el) => el.child(mark))
           .child(div().max_w(180).truncate().child(label(c, ps, this.shell)))
           .when(LOUD.has(c.status), (el) => el.child(div().size(5).flex_none().rounded_full().bg(t[c.status]))))
-        .child(div().id(`close-${c.id}`).pr(8).opacity(c.active || hot ? 0.5 : 0).hover((s) => s.opacity(1))
+        .child(div().id(`close-${c.id}`).relative().pr(8).opacity(dot ? 1 : c.active || hot ? 0.5 : 0).hover((s) => s.opacity(1))
           .on_mouse_down("left", stop)
           .on_click((_e, cx) => { cx.stop_propagation(); run("tab.close", { id: c.id }); })
-          .child("×"))
+          .child(dot ? div().opacity(0).child("×") : "×")
+          .when(dot, (el) => el.child(h_flex().absolute().top(0).bottom(0).left(0).right(8).items_center().justify_center()
+            .child(div().size(6).rounded_full().bg(t.muted)))))
         .when(c.active, (el) => el.child(div().absolute().left(0).right(0).bottom(0).h(2).bg(t.accent)));
     };
     return div().id("curfew-tabs").relative().size_full().bg(t.background)

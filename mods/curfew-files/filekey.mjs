@@ -1,5 +1,6 @@
 // What a file tab (the curfew-file mod) shows, as Files names it: its props, and the one string
-// filetab.js remembers each tab by. Pure, so node tests it (filekey.test.mjs).
+// filetab.js remembers each tab by. Byte-identical in curfew-files and curfew-diff, as filetab.js
+// is. Pure, so node tests it (curfew-files' filekey.test.mjs).
 
 const isAbsolute = (p) => p.startsWith("/") || /^[A-Za-z]:[\\/]/.test(p) || p.startsWith("\\\\");
 const absolute = (p) => (isAbsolute(String(p.file)) ? String(p.file) : `${String(p.folder ?? "").replace(/[\\/]+$/, "")}/${String(p.file).replace(/^\.\//, "")}`);

@@ -18,8 +18,8 @@ and how to remove it.
 | `mods/curfew-prs` | the session's pull requests: checks, review state, changed files, comments |
 | `mods/curfew-changes` | the worktree's changes against its base branch, comment-only files last, a commit box |
 | `mods/curfew-files` | the worktree's files, changed ones marked; a changed file opens its diff tab, any other its file tab |
-| `mods/curfew-diff` | a diff tab in the middle, one file per tab: unified or split, wrap, whitespace, comment lines dimmed, shown or folded, a pull request's review threads inline |
-| `mods/curfew-file` | a file tab in the middle, one file per tab: the file read-only, with line numbers and syntax colors |
+| `mods/curfew-diff` | a diff tab in the middle, one file per tab: unified or split, wrap, whitespace, comment lines dimmed, shown or folded, a pull request's review threads inline; `Edit` opens a worktree's file in its file tab |
+| `mods/curfew-file` | a file tab in the middle, one file per tab, with line numbers and syntax colors: edit it and save with ⌘S or Save; closing the tab saves too |
 | `mods/curfew-usage` | Claude Code's 5-hour and weekly usage in the sidebar foot |
 | `mods/curfew-new-session` | the `+` menu (Terminals and each project): a terminal or an agent as a new session, or in a new worktree |
 | `mods/curfew-claude` | the Claude Code launcher (below) |
@@ -219,7 +219,8 @@ folders:
   launcher's scripts), `curfew/pr-store/*.json` (the pull requests found per worktree);
   `quiet-hours/*`, `settings.json`'s `sounds.enabled`, `layouts/quiet-hours.json` and
   `layouts/quiet-hours.svg` (quiet hours). Elsewhere: new worktrees in `~/.herdr/worktrees/`,
-  and your commits; Remove project, with its box ticked, deletes worktrees there; Open in
+  and your commits; the files you edit in file tabs, in your repositories (only a file under
+  the worktree, and only while it is still what the tab last read); Remove project, with its box ticked, deletes worktrees there; Open in
   editor's empty probe files in a `mktemp -d` folder, removed at once. Nothing is
   written to a mod folder or to your Claude Code settings.
 - **Files read** outside the app home: your repositories (diffs, file tabs), your Claude Code
