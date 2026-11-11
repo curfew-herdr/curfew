@@ -25,11 +25,32 @@
               "window_drag": true
             },
             {
-              "id": "projects",
-              "type": "block",
-              "content": {
-                "mod": "curfew-sidebar"
-              }
+              "id": "sidebar-lists",
+              "type": "column",
+              "children": [
+                {
+                  "id": "projects",
+                  "type": "block",
+                  "size": {
+                    "weight": 2
+                  },
+                  "min": 90,
+                  "content": {
+                    "mod": "curfew-sidebar"
+                  }
+                },
+                {
+                  "id": "agents",
+                  "type": "block",
+                  "size": {
+                    "weight": 1
+                  },
+                  "min": 90,
+                  "content": {
+                    "mod": "agents"
+                  }
+                }
+              ]
             }
           ],
           "resizable": false

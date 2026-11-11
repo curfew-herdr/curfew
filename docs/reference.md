@@ -8,9 +8,9 @@ and how to remove it.
 
 | Folder | What it is |
 |---|---|
-| `layouts/curfew.json`, `curfew.svg` | the window, and its picture in herdr's settings |
+| `layouts/curfew.json`, `curfew.svg` | the window, and its picture in herdr's settings. Under the sidebar's projects it puts herdr's own agents list (the shipped `agents` mod, unchanged: every agent, the ones that need you first or grouped by space; a click goes to it) in a third of the height; the boundary between them drags |
 | `themes/curfew.json` | the dark palette: `#111111` sidebars, `#181818` work area, `#272727` hairlines, `#3fcdb4` accent |
-| `mods/curfew-sidebar` | TERMINALS (spaces outside any repo) and PROJECTS (git repos, their worktree spaces under them), scrolling, and the AGENTS block pinned under them (every agent, the ones that need input first, with its project and status; a click goes to it), each folding at its head bar, which shows its count; a status dot or the working mark per row, a project's `+` for a new worktree and `⋯` for its menu; the title strip's search and the foot's settings |
+| `mods/curfew-sidebar` | TERMINALS (spaces outside any repo) and PROJECTS (git repos, their worktree spaces under them), scrolling together, each folding at its head bar, which shows its count; a status dot or the working mark per row, a project's `+` for a new worktree and `⋯` for its menu; the title strip's search and the foot's settings |
 | `mods/curfew-project` | a project's `⋯` menu (New workspace…, Remove project…) and the Remove project dialog |
 | `mods/curfew-tabs` | the one tab row: the shown space's tabs named by what runs in them, `+`, split beside and below |
 | `mods/curfew-pane` | the 1 px accent edge on the focused pane of a split tab |
