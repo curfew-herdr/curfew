@@ -260,7 +260,9 @@ mixed from `foreground` and `muted` at 45%) and `#ef2929` (`ansi9`, the bad tone
   window switches to a dim board, a row per agent with the name its Claude Code session gave
   itself (as in the sidebar) and, faint, its project (the git repository's name);
   `unlock 10 min` is logged; `Quiet 30m 1h 2h` starts a quiet now; the chip's clock opens the
-  settings.
+  settings. Their last switch, `Only in layouts with the quiet chip` (off by default), keeps
+  quiet to the board and layouts with the chip: elsewhere no board and the sounds as they are,
+  and leaving the board for such a layout at night is a logged bypass that isn't pulled back.
 - **What moves:** the working mark, the refresh icon while checking, the quiet chip's
   countdown, and at night the board's working dots. Nothing else animates.
 
