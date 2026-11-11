@@ -22,7 +22,8 @@ knows. The pane on the right follows each task: its pull requests and their chec
 changes, and its files, and a button at its top opens the task's worktree in your code editor
 (macOS's default app for source files, or the one `curfew.editor` in herdr's settings.json
 names). Click a changed file and its diff opens as a tab, with code comments
-dimmed or folded out of the way; any other file opens as a tab too, read-only. Claude Code's
+dimmed or folded out of the way; any other file opens as a tab too, one you can edit and save
+(⌘S), and a diff tab's `Edit` button opens that file to edit. Claude Code's
 5-hour and weekly usage sits at the bottom of the sidebar.
 
 Choose your hours, or go quiet for an hour before a meeting. Your agents keep running, and the

@@ -1,6 +1,6 @@
 // que's diff tab, in herdr: a tab in the middle whose only pane is this mod, showing one file. The
 // review pane is the only list of files: Changes, Files and Pull requests open a file's tab, or
-// select it where it is already open (their difftab.js). Read-only.
+// select it where it is already open (their difftab.js). Read-only; Edit opens the file to change.
 //   props { kind: "changes", folder, file, on? }: that file of the worktree against que's base
 //     (base.js: the merge base of origin's default branch and HEAD, to the working tree, untracked
 //     files included), read again when the file or the repository changes.
@@ -8,12 +8,16 @@
 //     with its review threads, fetched once on open and again with the refresh button.
 //   Without `file`, the first file as the lists order them (code before comment-only files).
 // A 36px toolbar as que's: the path (its folders cut from their start, so the name stays whole),
-// `+a −d` (code apart from comments), for a pull request `#n vs <base>`; at its right Comments ▾,
-// Threads and Threaded hunks (a pull request's file with review threads), Unified | Split, Wrap,
-// Whitespace and refresh. Under it the file's lines, unified or split, its review threads under
-// their lines (each folds at its head). Changed lines that are only a code comment are drawn as
-// que draws them: dimmed (the default), shown as code, or folded to one row per run (`Comments
-// dimmed ▾`, remembered per project). A file with nothing left to compare reads `No changes in`.
+// `+a −d` (code apart from comments), for a pull request `#n vs <base>`; at its right Edit (a
+// worktree's file on this machine, under the folder, once the patch is read and doesn't have it
+// deleted: edit.mjs), Comments ▾, Threads and Threaded hunks (a pull request's file with review
+// threads), Unified | Split, Wrap, Whitespace and refresh. Edit opens the file in a file tab
+// (curfew-file), or selects its tab where it is open, as Files does (filetab.js and filekey.mjs,
+// curfew-files' copies: a file has one tab whichever opened it). Under the toolbar the file's
+// lines, unified or split, its review threads under their lines (each folds at its head). Changed
+// lines that are only a code comment are drawn as que draws them: dimmed (the default), shown as
+// code, or folded to one row per run (`Comments dimmed ▾`, remembered per project). A file with
+// nothing left to compare reads `No changes in`.
 // Props that start a tab in a state (tests, links): view "unified" | "split", wrap, whitespace,
 // commentMode "dim" | "show" | "fold", keepRemoved, menu "open" (the Comments menu), openRuns
 // "all", threads "shown" | "hidden", filter "all" | "threads", collapse "resolved" | "outdated" |
@@ -27,6 +31,8 @@ import { tokenize, extOf } from "./highlight.js";
 import { wordChanges, splitTokens, wrapTokens, Memo } from "./vendor.js";
 import { markFile, splitCounts, commentOnlyLast, countParts } from "./comments.js";
 import { READ, MAX_UNTRACKED, diffFrom } from "./base.js";
+import { openFile, settleFiles } from "./filetab.js";
+import { editProps } from "./edit.mjs";
 
 const MONO = "Menlo", PREFS = "curfew-diff.prefs", COMMENTS = "curfew-diff.comments";
 // The Comments menu's words, as que's (MODE_WORD, MODES).
@@ -164,6 +170,7 @@ export default class CurfewDiff extends View {
       const common = gh ? null : await git(["rev-parse", "--path-format=absolute", "--git-common-dir"]);
       this.project = gh ? gh[1] : common?.code === 0 ? common.stdout.trim() : root;
       this.path = this.wanted ? M.relativeFile(this.wanted, this.folder, root, prefix) : null;
+      this.prefix = prefix; // the folder from the top ("" there, else `sub/`): Edit's file is under it
       this.root = root;
     }
     const git = this.git(this.root), only = this.path ? ["--", this.path] : [];
@@ -484,6 +491,8 @@ export default class CurfewDiff extends View {
     const f = this.file, view = this.pref("view"), wrap = this.pref("wrap");
     const has = this.threads.length > 0, lines = this.split ? this.split.commentAdditions + this.split.commentDeletions : 0;
     const against = this.kind === "pr" ? `#${this.number}${this.pr?.baseRefName ? ` vs ${this.pr.baseRefName}` : ""}` : null;
+    // The file tab Edit opens: none until a patch is read, which says whether the file is deleted.
+    const edit = editProps({ kind: this.kind, folder: this.folder, on: this.on, path: this.path, prefix: this.prefix, file: this.loaded && !this.error ? this.file : undefined });
     const left = h_flex().flex_1().min_w(0).gap(8).items_center().overflow_hidden().whitespace_nowrap()
       .child(this.pathLabel(t))
       .when(Boolean(f), (e) => e.children(this.counts(this.split, f, t, c)))
@@ -492,6 +501,8 @@ export default class CurfewDiff extends View {
       .font_family(MONO).text_size(11).text_color(t.dim)
       .child(left)
       .child(h_flex().flex_none().gap(8).items_center()
+        // First after the path, a word as the others are, its text `muted` (a step over their `dim`).
+        .when(Boolean(edit), (e) => e.child(this.tool("rd-edit", "Edit", false, t, () => openFile(edit, edit.file.split("/").pop())).text_color(t.muted).tooltip("Edit this file")))
         // Code comments (que's Comments ▾) apart from a pull request's review threads.
         .when(lines > 0, (e) => e.child(this.tool("rd-comment-mode", `Comments ${MODE_WORD[this.commentView().mode]} ▾`, this.menu, t, (cx) => { this.menu = !this.menu; cx.notify(); })))
         .when(has, (e) => e.child(this.tool("rd-threads", "Threads", !this.hide, t, (cx) => { this.hide = !this.hide; this.dirty = true; cx.notify(); }).tooltip("Show the review threads")))
@@ -564,6 +575,7 @@ export default class CurfewDiff extends View {
   }
 
   render(cx) {
+    settleFiles(); // the file tabs Edit opened, remembered once Herdr lists them
     const t = theme(), c = this.palette(t);
     // Whitespace is read by git: a change of it (here or in another diff tab) reads again.
     if (this.kind === "changes" && this.loadedWs !== undefined && this.pref("whitespace") !== this.loadedWs && !this.loading) this.load(cx);

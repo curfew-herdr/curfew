@@ -80,6 +80,8 @@ test("the shared helpers are byte-identical in every mod that carries them", () 
   };
   same("base.js", ["curfew-diff", "curfew-changes", "curfew-bar", "curfew-files"]);
   same("difftab.js", ["curfew-changes", "curfew-files", "curfew-prs"]);
+  same("filetab.js", ["curfew-files", "curfew-diff"]);
+  same("filekey.mjs", ["curfew-files", "curfew-diff"]);
   same("patch.js", ["curfew-diff", "curfew-changes"]);
   same("comments.js", ["curfew-diff", "curfew-changes"]);
 });
