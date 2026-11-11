@@ -166,7 +166,10 @@ The chip at the foot of the sidebar is the quiet-hours mod, the same one as
 [quiet-hours](https://github.com/curfew-herdr/quiet-hours), shipped here so the layout
 works out of the box. At night it shows a dim board instead of your terminals, turns herdr's
 sounds off, and logs every unlock. **The schedule starts off:** click the clock at the chip's
-right end to turn it on and set your hours. `Quiet 30m 1h 2h` works any time. Details:
+right end to turn it on and set your hours. `Quiet 30m 1h 2h` works any time. Quiet hours follow
+you into every layout; the settings' `Only in layouts with the quiet chip` (off by default) keeps
+them to layouts that have the chip: other layouts are left alone, board and sounds both, and a
+switch to one from the board at night is logged as a bypass. Details:
 `mods/quiet-hours/README.md`.
 
 ## What it runs
