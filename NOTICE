@@ -61,15 +61,18 @@ Version 2.0. All of them are modified.
   where) are adapted from the shipped spaces mod. remove.mjs reads `git worktree
   list --porcelain` and checks for uncommitted changes (git status without
   optional locks or fsmonitor) as the shipped worktree mod does.
-- mods/curfew-project: the menu's keys (↑/↓, Enter, Esc) are adapted from the
-  shipped menu mod, its rows from the shipped new-menu mod (by way of
-  curfew-new-session).
+- mods/curfew-project: the menus' keys (↑/↓, Enter, Esc) are adapted from the
+  shipped menu mod, their rows from the shipped new-menu mod (by way of
+  curfew-new-session). The space menu's items, the commands they run, the
+  worktree dialog's sizes and closing before running are the shipped menu
+  mod's.
 - mods/curfew-tabs, mods/curfew-bar, mods/quiet-hours: the layout-node lookup
   (find) is adapted from the shipped tabs and workspace-chrome mods.
-- mods/quiet-hours draws the Herdr app's mods/workspace-chrome/clock.svg, and
+- mods/quiet-hours draws the Herdr app's mods/workspace-chrome/clock.svg,
   mods/curfew-new-session its icons/shell.svg and
-  mods/workspace-chrome/branch.svg, from the person's install; they are not
-  copied here.
+  mods/workspace-chrome/branch.svg, and mods/curfew-project its
+  mods/workspace-chrome/square-pen.svg and git-branch.svg, from the person's
+  install; they are not copied here.
 
 ------------------------------------------------------------------------------
 Other people's herdr mods

@@ -26,6 +26,17 @@
 // chose show as rows under the project, their processes get 5 s to end (then SIGKILL, by those
 // pids only), and each worktree is deleted in turn, its row going once it has, or saying why not.
 // `curfew-sidebar.remove-project` opens that dialog for the shown space's project.
+//
+// A space's ⋯, or a right-click on its row, opens que's space menu (mods/curfew-project, props kind
+// "space") in place of herdr's: herdr's items, its Close handed back the project menu's way (action
+// "close"). A workspace whose worktree may go with it (remove.mjs's keptOnClose: on this computer,
+// a linked worktree under ~/.herdr/worktrees, no other space in it) gets que's Close dialog (kind
+// "close"), told here whether it has uncommitted changes; any other space gets herdr's own Close,
+// which leaves the folder. The dialog's answer comes back through shared "curfew-close-workspace".
+// Its checkbox, checked once more against where the space is now, runs Remove project's steps for
+// that one space and that one worktree: one row under the project, the same steps and failures.
+// Several may run at once, and a workspace may be made meanwhile; Remove project waits for them.
+// `curfew-sidebar.close-workspace` asks that for the shown space.
 
 import { View, div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
@@ -33,7 +44,7 @@ import { spaces, panes, run, openOverlay, closeOverlay, exec, hc, layout, theme,
 import * as fs from "fs/promises";
 import { Failure, prepareWorkspace, randomName, worktreeRoot } from "./workspace.mjs";
 import { isClaude, nextTitles, paneTitle, cleanKept, runningName } from "./titles.mjs";
-import { planRemoval, recordProcesses, stopProcesses, deleteWorktrees } from "./remove.mjs";
+import { planRemoval, recordProcesses, stopProcesses, deleteWorktrees, isDirty, keptOnClose } from "./remove.mjs";
 
 // que's row titles (titles.mjs): { titles: space -> the name its Claude session gave itself,
 // seen: terminal -> the name it showed last }, kept across restarts.
@@ -61,10 +72,13 @@ const NEW_WORKSPACE = "curfew-new-workspace";
 const STALE = 30_000;
 // A made workspace whose space hasn't shown by then says so.
 const OPENING = 20_000;
-// The project menu's choices, [{ id, at, key, action: "new" | "remove" }], and the Remove dialog's
-// requests, [{ id, at, key, spaces, worktrees }] (mods/curfew-project): taken as the + menu's are.
+// The project menu's choices, [{ id, at, key, action: "new" | "remove" }] (the space menu's Close:
+// { id, at, action: "close", space }), the Remove dialog's requests, [{ id, at, key, spaces,
+// worktrees }], and the Close dialog's, [{ id, at, space, key, path, delete }] (mods/curfew-project):
+// taken as the + menu's are.
 const PROJECT_ACTION = "curfew-project-action";
 const REMOVE_PROJECT = "curfew-remove-project";
+const CLOSE_WORKSPACE = "curfew-close-workspace";
 // A project's main checkout, from its key (where git keeps the repository: <main>/.git).
 const mainOf = (key) => JSON.parse(key)[1].replace(/\/\.git$/, "");
 // A key from another mod, as [machine, git dir], or null when it isn't one.
@@ -86,6 +100,10 @@ function dialogHeight(plan, busy, path) {
   const list = plan.worktrees.length ? 80 + Math.min(plan.worktrees.length, 8) * 22 + (plan.outside ? 22 : 0) : 0;
   return 190 + lines * 22 + list + (busy ? 32 : 0);
 }
+
+// The Close dialog's overlay: its card is 271 tall with the checkbox checked (245 without), dirty
+// or not (mods/curfew-project's renderClose), and a card taller than the overlay would be cut.
+const CLOSE_HEIGHT = 280;
 
 // curfew's Claude launcher (mods/curfew-claude), started with sh so it needs no +x bit.
 const LAUNCHER = () => `${appHome()}/mods/curfew-claude/claude`;
@@ -173,6 +191,8 @@ export default class QueSidebar extends View {
     this.removals = []; // worktrees being deleted, apart from the jobs: { id, key, project, name, path, step, error }
     this.removing = new Set(); // the projects (keys) being removed
     this.planning = new Set(); // the projects whose Remove dialog is being worked out
+    this.retiring = []; // workspaces closing with their worktrees, until the deletion ends: { key, path }
+    this.weighing = new Set(); // the spaces whose Close dialog is being worked out
     this.handled = new Set(); // the requests taken
     this.names = new Set(); // names drawn by the jobs, until their branches exist
     this.host = { exec, hc, readTextFile, home, log: (m) => console.log(`curfew-sidebar: ${m}`) };
@@ -192,6 +212,7 @@ export default class QueSidebar extends View {
         cx.notify();
         if (command === "new-workspace") await this.newWorkspaceHere(cx);
         else if (command === "remove-project") await this.removeProjectHere(cx);
+        else if (command === "close-workspace") await this.closeWorkspaceHere(cx);
         else if (command === "take") this.take(cx);
       }
     });
@@ -261,8 +282,16 @@ export default class QueSidebar extends View {
     cx.notify();
   }
 
-  menu(s) {
-    openOverlay({ mod: "menu", kind: "popup", width: 200, height: 260, props: { tab: "space", target: { id: s.id } } });
+  // A space's ⋯, and a right-click on its row: que's space menu (mods/curfew-project) in place of
+  // herdr's, with herdr's items (Rename; New and Open worktree in a repo, Remove worktree in a linked
+  // one; Close), its Close a request (take). `workspace`: that Close may delete the worktree too.
+  // One project menu at a time, as projectActions.
+  menu(s, g) {
+    const git = g ? (g.linked ? "linked" : "main") : null;
+    const n = 2 + (git ? 2 : 0) + (git === "linked" ? 1 : 0);
+    if (this.projectMenu) closeOverlay(this.projectMenu);
+    this.projectMenu = openOverlay({ mod: "curfew-project", kind: "popup", width: 200, height: 10 + 31 * n,
+      props: { kind: "space", space: s.id, git, workspace: !this.kept(s, g, spaces(), panes()) } });
   }
 
   // herdr's worktree dialog: a new worktree running Claude Code, herdr asking for its branch.
@@ -306,16 +335,27 @@ export default class QueSidebar extends View {
     this.askRemove(this.projectFor(g.repo, g.name), cx);
   }
 
-  // Requests from the + menu, the project menu and the Remove dialog (on their take command, or at
-  // a render): each is taken once (by id), one older than STALE is dropped, and the taken ones are
-  // cleared from the shared lists.
+  // The shown space, for the close-workspace command (its git asked as newWorkspaceHere does).
+  async closeWorkspaceHere(cx) {
+    const s = spaces().find((x) => x.active);
+    if (!s) return;
+    const k = where(s, panes());
+    const g = this.git[k] ?? (await this.gitOf(k, cx).catch(() => null));
+    if (g) this.git[k] ??= g;
+    this.askClose(s.id, cx);
+  }
+
+  // Requests from the + menu, the project and space menus and the Remove and Close dialogs (on their
+  // take command, or at a render): each is taken once (by id), one older than STALE is dropped, and
+  // the taken ones are cleared from the shared lists.
   take(cx) {
     this.takeFrom(NEW_WORKSPACE, (r) => {
       if (typeof r.repo === "string" && r.repo) this.start(r, cx);
     }, cx);
-    // Not inside a render: New workspace… opens the + menu.
+    // Not inside a render: New workspace… opens the + menu, Close a dialog or closes the space.
     this.takeFrom(PROJECT_ACTION, (r) => cx.timer.after(0, (cx) => this.projectAction(r, cx)), cx);
     this.takeFrom(REMOVE_PROJECT, (r) => this.removeTaken(r, cx), cx);
+    this.takeFrom(CLOSE_WORKSPACE, (r) => cx.timer.after(0, (cx) => this.closeTaken(r, cx)), cx);
   }
 
   takeFrom(name, act, cx) {
@@ -344,8 +384,10 @@ export default class QueSidebar extends View {
     this.projectMenu = openOverlay({ mod: "curfew-project", kind: "popup", width: 200, height: 72, props: { kind: "menu", key: p.repo, project: p.name } });
   }
 
-  // The project menu's choice: New workspace… is the project's +; Remove project… asks first.
+  // The project menu's choice: New workspace… is the project's +; Remove project… asks first. The
+  // space menu's Close names its space, not a project.
   projectAction(r, cx) {
+    if (r.action === "close") return this.askClose(r.space, cx);
     if (!parseKey(r.key)) return;
     if (r.action === "new") this.newWorkspace(this.projectFor(r.key));
     else if (r.action === "remove") this.askRemove(this.projectFor(r.key), cx);
@@ -357,13 +399,19 @@ export default class QueSidebar extends View {
     return this.jobs.some((j) => !j.error && (j.key === key || j.repo === main));
   }
 
+  // A workspace of the project is closing with its worktree (until that deletion has ended).
+  retiringIn(key) {
+    return this.retiring.some((c) => c.key === key);
+  }
+
   // Remove project…: what removing it would close and delete, worked out here (remove.mjs), then
   // que's dialog (mods/curfew-project) with that as its props, so the dialog runs no git; its
   // Remove comes back as a request (take). A project on another machine offers no worktrees:
-  // deleting them runs on this computer only.
+  // deleting them runs on this computer only. Not while one of its workspaces is closing with its
+  // worktree, as not while it is being removed.
   askRemove(p, cx) {
     const k = parseKey(p.repo);
-    if (!k || this.removing.has(p.repo) || this.planning.has(p.repo)) return;
+    if (!k || this.removing.has(p.repo) || this.retiringIn(p.repo) || this.planning.has(p.repo)) return;
     this.planning.add(p.repo);
     const main = mainOf(p.repo);
     const rows = p.rows ?? [];
@@ -383,18 +431,15 @@ export default class QueSidebar extends View {
     });
   }
 
-  // The Remove dialog's request, unless that project's removal is already running or one of its
-  // workspaces has started being made since the dialog opened.
+  // The Remove dialog's request, unless that project's removal is already running, one of its
+  // workspaces is closing with its worktree, or one has started being made since the dialog opened.
   removeTaken(r, cx) {
     const k = parseKey(r.key);
-    if (!k || this.removing.has(r.key) || this.creating(r.key)) return;
+    if (!k || this.removing.has(r.key) || this.retiringIn(r.key) || this.creating(r.key)) return;
     this.removeProject(r, k, cx);
   }
 
-  // Removes a project, que's order: its terminals first, then its worktrees. The pids behind its
-  // spaces' terminals are read (on this computer), the spaces close, the worktrees asked for show
-  // as rows under the project; once those processes have ended (after 5 s, SIGKILL for those pids
-  // only), each worktree is deleted in turn (remove.mjs) and its row goes, or says why it couldn't.
+  // Removes a project, que's order (retire): its terminals first, then the worktrees asked for.
   // Branches and the main checkout are never touched. What the project leaves behind goes with it:
   // the failed rows of workspaces it was making, and its fold.
   removeProject(r, k, cx) {
@@ -402,14 +447,24 @@ export default class QueSidebar extends View {
     const sp = spaces(), ps = panes();
     const name = this.group(sp, ps).projects.get(key)?.name ?? base(main);
     const closing = (Array.isArray(r.spaces) ? r.spaces : []).map((id) => sp.find((s) => s.id === id)).filter(Boolean);
-    const addresses = closing.flatMap((s) => {
-      const tabs = new Set(s.tabs.map((c) => c.id));
-      return ps.filter((p) => tabs.has(p.tab) && p.terminal).map((p) => p.terminal);
-    });
     const paths = here && Array.isArray(r.worktrees) ? [...new Set(r.worktrees.filter((p) => typeof p === "string" && p))] : [];
     this.removing.add(key);
     this.jobs = this.jobs.filter((j) => !(j.error && (j.key === key || j.repo === main)));
     if (this.folded.delete(key)) localStorage.setItem("folded", JSON.stringify([...this.folded]));
+    this.retire({ id: r.id, key, project: name, closing, paths, here }, cx, () => this.removing.delete(key));
+  }
+
+  // que's order for closing spaces and deleting worktrees, Remove project's and a workspace's Close
+  // with its worktree: the pids behind the spaces' terminals are read (on this computer), the
+  // spaces close, the worktrees show as rows under the project; once those processes have ended
+  // (after 5 s, SIGKILL for those pids only), each worktree is deleted in turn (remove.mjs) and its
+  // row goes, or says why it couldn't. `done` runs at the end, however it went.
+  retire({ id, key, project, closing, paths, here }, cx, done) {
+    const main = mainOf(key), ps = panes();
+    const addresses = closing.flatMap((s) => {
+      const tabs = new Set(s.tabs.map((c) => c.id));
+      return ps.filter((p) => tabs.has(p.tab) && p.terminal).map((p) => p.terminal);
+    });
     cx.spawn(async (cx) => {
       // A reload of this mod mid-way loses the redraw (as in make()) and the 5 s timer with it.
       const redraw = () => {
@@ -418,7 +473,7 @@ export default class QueSidebar extends View {
         } catch {}
       };
       const wait = (ms) => new Promise((resolve) => cx.timer.after(ms, () => resolve()));
-      const rows = paths.map((path, i) => ({ id: `${r.id}-${i}`, key, project: name, name: base(path), path, step: "stopping", error: "" }));
+      const rows = paths.map((path, i) => ({ id: `${id}-${i}`, key, project, name: base(path), path, step: "stopping", error: "" }));
       const rowOf = (path) => rows.find((row) => row.path === path);
       try {
         const procs = here ? await recordProcesses(this.host, addresses) : [];
@@ -446,9 +501,80 @@ export default class QueSidebar extends View {
         // Unexpected (the steps answer their failures): the rows still waiting say so.
         for (const row of this.removals) if (rows.includes(row) && !row.error) row.error = String(e?.message ?? e).split(home()).join("~");
       } finally {
-        this.removing.delete(key);
+        done();
         redraw();
       }
+    });
+  }
+
+  // Why closing s must leave its worktree on disk ("" when it may go too): remove.mjs's rule on
+  // what this list knows of the spaces now; and not while its project is being removed or that
+  // worktree is going already.
+  kept(s, g, sp, ps) {
+    if (g && this.removing.has(g.repo)) return "its project is being removed";
+    if (g && this.deleting(g.top)) return "it is being deleted already";
+    return keptOnClose({ root: worktreeRoot(home()), space: { machine: s.machine ?? null, top: g?.top ?? null, linked: Boolean(g?.linked) },
+      others: sp.filter((x) => x.id !== s.id).map((x) => ({ machine: x.machine ?? null, top: this.git[where(x, ps)]?.top ?? null, place: place(x, ps) })) });
+  }
+
+  // A worktree going already: a workspace closing with it, or a removal row that hasn't failed.
+  deleting(path) {
+    return this.retiring.some((c) => c.path === path) || this.removals.some((row) => row.path === path && !row.error);
+  }
+
+  // Close, from the space menu or the close-workspace command: a workspace whose worktree may go
+  // with it gets que's Close dialog (mods/curfew-project), its uncommitted changes looked at here
+  // first so the dialog runs no git; its answer comes back as a request (take). Any other space
+  // gets herdr's own Close, which asks in herdr's dialog and leaves the folder.
+  askClose(id, cx) {
+    const sp = spaces(), ps = panes(), s = sp.find((x) => x.id === id);
+    if (!s || this.weighing.has(id)) return;
+    const g = this.git[where(s, ps)];
+    if (this.kept(s, g, sp, ps)) return run("space.close", { id });
+    const name = this.rowName({ s, g }, false, ps);
+    this.weighing.add(id);
+    cx.spawn(async () => {
+      try {
+        const dirty = await isDirty(this.host, g.top);
+        if (this.closeDialog) closeOverlay(this.closeDialog);
+        this.closeDialog = openOverlay({ mod: "curfew-project", kind: "dialog", modal: true, frame: "none", width: 460, height: CLOSE_HEIGHT,
+          props: { kind: "close", space: id, name, key: g.repo, path: g.top, dirty } });
+      } catch (e) {
+        notify({ title: `Couldn't close ${name}`, body: String(e?.message ?? e), level: "error" });
+      } finally {
+        this.weighing.delete(id);
+      }
+    });
+  }
+
+  // The Close dialog's answer: the space closes, herdr asking no more. With its checkbox the
+  // worktree goes too, Remove project's way for that one space and that one worktree, once it is
+  // checked again against where the space is now (git asked when no render has yet); else the
+  // space closes alone and a warning says why the worktree stayed. Nothing while its project is
+  // being removed.
+  closeTaken(r, cx) {
+    if (typeof r.space !== "string" || typeof r.key !== "string" || typeof r.path !== "string" || typeof r.delete !== "boolean") return;
+    const s = spaces().find((x) => x.id === r.space);
+    if (!s || this.removing.has(r.key)) return;
+    if (!r.delete) return run("space.close", { id: s.id, confirmed: true });
+    const k = where(s, panes());
+    cx.spawn(async (cx) => {
+      const g = this.git[k] ?? (await this.gitOf(k, cx).catch(() => null));
+      const sp = spaces(), ps = panes(), now = sp.find((x) => x.id === r.space);
+      if (!now || this.removing.has(r.key) || (g && this.removing.has(g.repo))) return;
+      const why = g?.repo === r.key && g.top === r.path ? this.kept(now, g, sp, ps) : "the space has moved out of it";
+      if (why) {
+        run("space.close", { id: now.id, confirmed: true });
+        notify({ title: `Didn't delete ${base(r.path)}`, body: `Only the space closed: ${why}.`.split(home()).join("~"), level: "warning" });
+        return;
+      }
+      const entry = { key: r.key, path: r.path };
+      this.retiring.push(entry);
+      // An earlier try's failed row for that worktree gives way to this one.
+      this.removals = this.removals.filter((row) => !(row.error && row.path === r.path));
+      this.retire({ id: r.id, key: r.key, project: g.name, closing: [now], paths: [r.path], here: true }, cx, () => {
+        this.retiring = this.retiring.filter((c) => c !== entry);
+      });
     });
   }
 
@@ -599,9 +725,9 @@ export default class QueSidebar extends View {
   // A workspace being made: que's preparing row, the working mark in the neutral tone and the
   // step it is on where `›_` would sit. Once a step has failed: the bad tone's dot, `failed` and
   // ×, and the reason on a line under it (whole in its tooltip); nothing of it is left on disk.
-  // A worktree being deleted (Remove project) shows the same way, its steps `stopping` (its
-  // terminals' processes ending), `waiting` (for its turn) and `deleting`; failed, the worktree is
-  // still there.
+  // A worktree being deleted (Remove project, or its workspace's Close) shows the same way, its
+  // steps `stopping` (its terminals' processes ending), `waiting` (for its turn) and `deleting`;
+  // failed, the worktree is still there.
   jobRow(job, t) {
     const id = `job-${job.id}`, failed = Boolean(job.error);
     const row = h_flex().id(id).h(26).px(8).gap(6).flex_none().items_center().rounded(4)
@@ -657,7 +783,7 @@ export default class QueSidebar extends View {
       .when(Boolean(tip), (el) => el.tooltip(tip))
       .on_hover((on, cx) => this.hovered(id, on, cx))
       .on_click(() => run("space.select", { id: s.id }))
-      .on_mouse_down("right", () => this.menu(s))
+      .on_mouse_down("right", () => this.menu(s, g))
       .child(h_flex().size(16).flex_none().items_center().justify_center().child(mark))
       .child(div().flex_1().min_w(0).truncate().text_color(s.active ? t.foreground : look.name).child(name))
       .when(!hot && Boolean(ab), (el) => el.child(this.mono(ab, t.dim)))
@@ -665,7 +791,7 @@ export default class QueSidebar extends View {
       .when(hot, (el) => el.child(this.mono(look.word, look.tone ?? t.dim))
         .child(h_flex().id(`more-${s.id}`).size(18).flex_none().items_center().justify_center().rounded(2).text_color(t.dim)
           .hover((st) => st.bg(t.selected).text_color(t.foreground))
-          .on_click((_e, cx) => { cx.stop_propagation(); this.menu(s); })
+          .on_click((_e, cx) => { cx.stop_propagation(); this.menu(s, g); })
           .child("⋯")));
   }
 

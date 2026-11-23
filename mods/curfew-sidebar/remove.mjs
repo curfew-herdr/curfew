@@ -2,7 +2,8 @@
 // spaces close and their terminals end; when the dialog's checkbox asks for it, its worktrees under
 // herdr's worktree root are deleted too, one at a time, then `git worktree prune` and each emptied
 // <root>/<repo> folder goes. Branches, the main checkout and anything outside the root are never
-// touched.
+// touched. Closing a workspace with its worktree (the Close dialog's checkbox) takes the same steps
+// for that one space and that one worktree; keptOnClose says when the dialog may offer it.
 //
 // Ported from que (https://github.com/queapp-org/que), Apache-2.0, by the same author (see NOTICE):
 // the order is WorkspaceManager.removeProject's in src/daemon/workspaces.ts (terminals first, then
@@ -79,6 +80,30 @@ export function isInside(root, path) {
   const rest = p.slice(r.length + 1).replace(/\/+$/, "");
   return rest !== "" && clean(rest.split("/"));
 }
+
+// ---- closing a workspace with its worktree -----------------------------------------------------
+
+/**
+ * Why closing a space must leave its worktree on disk, or "" when the Close dialog may offer to
+ * delete it. `space` is { machine, top, linked } (null here; git's top folder for where it is now,
+ * and whether that is a linked worktree), `root` herdr's worktree root, `others` the other open
+ * spaces as [{ machine, top, place }] (`top` null while git hasn't answered for one, `place` where
+ * it is now). It may go only from this computer, a linked worktree strictly under `root`, with no
+ * other space in it: deleting it would pull the folder out from under that one. Another space is in
+ * it when git gives it the same top, or when its folder lies there (git may not have answered yet).
+ */
+export function keptOnClose({ space, root, others = [] }) {
+  const { machine = null, top = null, linked = false } = space ?? {};
+  if (machine) return "its space is on another machine";
+  if (!linked || typeof top !== "string" || !top) return "it is not a linked worktree";
+  if (!isInside(root, top)) return `${top} is not under ${root}`;
+  const there = (p) => typeof p === "string" && (p.replace(/\/+$/, "") === top || isInside(top, p));
+  if (others.some((o) => o && !o.machine && (o.top === top || there(o.place)))) return "another space is open in it";
+  return "";
+}
+
+/** Whether closing `space` may delete its worktree too (keptOnClose has nothing against it). */
+export const deletableOnClose = (facts) => keptOnClose(facts) === "";
 
 /** Uncommitted changes, untracked files included: anything `git status --porcelain` prints. A status that fails counts as dirty. */
 export async function isDirty(host, path) {

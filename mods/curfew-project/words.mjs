@@ -1,6 +1,7 @@
-// What the Remove project dialog says: que's words (its RemoveProjectDialog), with deleting the
-// worktrees made opt-in. Plain functions of the dialog's props, so the rules (one or many, what the
-// checkbox adds) are tested in node (words.test.mjs).
+// What the dialogs say. Remove project: que's words (its RemoveProjectDialog), with deleting the
+// worktrees made opt-in. Close, for a workspace: the same, for one space and its worktree. Plain
+// functions of a dialog's props, so the rules (one or many, what the checkbox adds) are tested in
+// node (words.test.mjs).
 
 /** `path` with ~ for the home folder. */
 export function tilde(path, home) {
@@ -38,5 +39,29 @@ export function removeWords(p, checked, home) {
     lost: on && worktrees.some((w) => w.dirty) ? "Uncommitted changes are lost." : null,
     outside: on && outside > 0 ? `${outside} ${outside === 1 ? "worktree" : "worktrees"} outside ~/.herdr/worktrees ${outside === 1 ? "is" : "are"} only closed.` : null,
     busy: p?.busy ? "A workspace is being made in it; remove it once that's done." : null,
+  };
+}
+
+/**
+ * The Close dialog's lines, from its props { name, path, dirty } (see main.js) and whether its
+ * checkbox is checked:
+ * - title, body, checkbox;
+ * - where, the worktree's folder with ~ for home; dirty, its tag when the worktree has uncommitted
+ *   changes, checked or not, so it is known before checking;
+ * - when checked: kept, "The branch is kept."; lost, "Uncommitted changes are lost." when dirty;
+ * - button: the confirm button's label, which says when it deletes.
+ */
+export function closeWords(p, checked, home) {
+  const on = Boolean(checked);
+  const dirty = Boolean(p?.dirty);
+  return {
+    title: `Close ${p?.name || "this workspace"}?`,
+    body: "Its terminals are killed.",
+    checkbox: "Also delete its worktree",
+    where: tilde(p?.path, home),
+    dirty: dirty ? "uncommitted changes" : null,
+    kept: on ? "The branch is kept." : null,
+    lost: on && dirty ? "Uncommitted changes are lost." : null,
+    button: on ? "Close and delete" : "Close",
   };
 }

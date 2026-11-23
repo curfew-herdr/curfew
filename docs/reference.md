@@ -11,7 +11,7 @@ and how to remove it.
 | `layouts/curfew.json`, `curfew.svg` | the window, and its picture in herdr's settings. Under the sidebar's projects it puts herdr's own agents list (the shipped `agents` mod, unchanged: every agent, the ones that need you first or grouped by space; a click goes to it) in a third of the height; the boundary between them drags |
 | `themes/curfew.json` | the dark palette: `#111111` sidebars, `#181818` work area, `#272727` hairlines, `#3fcdb4` accent |
 | `mods/curfew-sidebar` | TERMINALS (spaces outside any repo) and PROJECTS (git repos, their worktree spaces under them), scrolling together, each folding at its head bar, which shows its count; a status dot or the working mark per row, a project's `+` for a new worktree and `⋯` for its menu; the title strip's search and the foot's settings |
-| `mods/curfew-project` | a project's `⋯` menu (New workspace…, Remove project…) and the Remove project dialog |
+| `mods/curfew-project` | a project's `⋯` menu (New workspace…, Remove project…), a space's `⋯` menu (herdr's items, with Close asking about its worktree), the Remove project dialog and the Close dialog |
 | `mods/curfew-tabs` | the one tab row: the shown space's tabs named by what runs in them, `+`, split beside and below |
 | `mods/curfew-pane` | the 1 px accent edge on the focused pane of a split tab |
 | `mods/curfew-bar` | the review pane's strip (Pull requests, Changes, Files, with counts; the button left of » opens the worktree in your code editor, » folds it) and its 40 px folded rail |
@@ -160,6 +160,29 @@ or `herdr-app do`) asks to remove the shown space's project; while the dialog is
 `curfew-project.toggle`, `curfew-project.remove` and `curfew-project.cancel` do what Space, Enter
 and Esc do.
 
+## Closing a workspace
+
+A space's `⋯` (or a right-click on its row) opens a menu with herdr's items: Rename, New worktree and
+Open worktree (in a git repo), Remove worktree (a linked worktree) and Close. Close on a workspace
+(a space in a linked worktree under `~/.herdr/worktrees`) asks first: "Close <name>?", "Its
+terminals are killed.", and a box "Also delete its worktree" (on by default) with the worktree's
+path and an `uncommitted changes` tag when it has any. Ticked, the dialog adds that the branch is
+kept and, if there are uncommitted changes, that they are lost. Enter confirms ("Close", or "Close
+and delete" ticked), Esc cancels, Space ticks the box.
+
+Unticked, the space closes. Ticked, it goes as in Remove project, for this one workspace: the
+terminals' processes are recorded, the space closes, a row under the project shows `stopping`,
+`waiting` and `deleting` (5 seconds for the processes to end, then they are killed), and the
+worktree is deleted with `git worktree remove --force`; the branch is kept. A failure stays on the
+row with its reason until you dismiss it.
+
+The worktree can be deleted only when the space is on this computer, is in a linked worktree under
+`~/.herdr/worktrees`, and no other open space is in that worktree; any other space's Close is
+herdr's own "Close space?", and nothing is deleted. `curfew-sidebar.close-workspace` (a key, or
+`herdr-app do`) asks the same for the shown space; while the dialog is open, `curfew-project.toggle`,
+`curfew-project.close` and `curfew-project.cancel` do what Space, Enter and Esc do. Closing a space's
+last tab (⌘W or a tab's `×`) still goes through herdr's own confirmation, which has no such option.
+
 ## Quiet hours
 
 The chip at the foot of the sidebar is the quiet-hours mod, the same one as
@@ -187,7 +210,7 @@ folders:
   `~/.herdr/worktrees/<repo>/`, copies the gitignored files its `.worktreeinclude` (or
   `que.toml` `worktree_include`) lists, and runs the repo's `que.toml` `setup` commands in the
   new terminal. "Named worktree…" and "Open worktree…" are herdr's own dialog.
-- **Remove project…:** when its dialog opens, `git worktree list --porcelain -z` in the main
+- **Remove project… and Close and delete:** when the dialog opens, `git worktree list --porcelain -z` in the main
   checkout and `git status --porcelain` in each worktree it could delete. On Remove,
   `hc get <terminal>` for each of the project's terminals before they close (their process ids),
   then `ps -o pid=,lstart= -p <ids>` about four times a second for up to 5 seconds, and
@@ -195,7 +218,8 @@ folders:
   terminals' own processes, never a name or a pattern. With the box ticked, then
   `git worktree list --porcelain -z` again, `git worktree remove --force <path>` for each
   worktree under `~/.herdr/worktrees/` that list still has, `git worktree prune`, and `rmdir` on
-  the emptied `~/.herdr/worktrees/<repo>` folder.
+  the emptied `~/.herdr/worktrees/<repo>` folder. Close and delete does the same for the one
+  workspace's worktree and keeps its branch.
 - **gh** (GitHub, over the network): `gh pr list`, `gh pr view`, `gh api
   repos/<owner>/<repo>/pulls/<n>/comments|files` for the Pull requests pane, about every 2.5
   minutes while it shows; `gh pr diff` and `gh api graphql` (review threads) for a pull
@@ -220,7 +244,7 @@ folders:
   `quiet-hours/*`, `settings.json`'s `sounds.enabled`, `layouts/quiet-hours.json` and
   `layouts/quiet-hours.svg` (quiet hours). Elsewhere: new worktrees in `~/.herdr/worktrees/`,
   and your commits; the files you edit in file tabs, in your repositories (only a file under
-  the worktree, and only while it is still what the tab last read); Remove project, with its box ticked, deletes worktrees there; Open in
+  the worktree, and only while it is still what the tab last read); Remove project and Close and delete, with the box ticked, delete worktrees there; Open in
   editor's empty probe files in a `mktemp -d` folder, removed at once. Nothing is
   written to a mod folder or to your Claude Code settings.
 - **Files read** outside the app home: your repositories (diffs, file tabs), your Claude Code
