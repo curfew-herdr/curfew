@@ -151,6 +151,53 @@ describe("inside the root", () => {
   });
 });
 
+describe("closing a workspace with its worktree", () => {
+  const root = "/h/.herdr/worktrees";
+  const top = `${root}/shop/calm-otter`;
+  const here = { machine: null, top, linked: true };
+  const facts = (space, others = []) => ({ space, root, others });
+
+  test("a linked worktree under the root, on this computer, with no other space in it", () => {
+    assert.equal(R.keptOnClose(facts(here)), "");
+    assert.equal(R.deletableOnClose(facts(here)), true);
+    assert.equal(R.deletableOnClose(facts({ top, linked: true })), true, "no machine given: this computer");
+    assert.equal(R.deletableOnClose(facts(here, [{ machine: null, top: "/src/shop", place: "/src/shop" }, { machine: null, top: `${root}/shop/calm-otter-2`, place: `${root}/shop/calm-otter-2` }])), true, "other spaces elsewhere, a sibling sharing its prefix too");
+  });
+
+  test("another computer's space, the main checkout, no repo, or a worktree outside the root: kept", () => {
+    const cases = [
+      [{ ...here, machine: "vps" }, "its space is on another machine"],
+      [{ machine: null, top: "/src/shop", linked: false }, "it is not a linked worktree"],
+      [{ machine: null, top: null, linked: false }, "it is not a linked worktree"],
+      [{ machine: null, top: "", linked: true }, "it is not a linked worktree"],
+      [{ machine: null, top: null, linked: true }, "it is not a linked worktree"],
+      [{ machine: null, top: "/elsewhere/calm-otter", linked: true }, `/elsewhere/calm-otter is not under ${root}`],
+      [{ machine: null, top: root, linked: true }, `${root} is not under ${root}`],
+      [{ machine: null, top: `${root}-x/shop/a`, linked: true }, `${root}-x/shop/a is not under ${root}`],
+      [{ machine: null, top: `${root}/shop/../../x`, linked: true }, `${root}/shop/../../x is not under ${root}`],
+    ];
+    for (const [space, why] of cases) {
+      assert.equal(R.keptOnClose(facts(space)), why, JSON.stringify(space));
+      assert.equal(R.deletableOnClose(facts(space)), false, JSON.stringify(space));
+    }
+    assert.equal(R.deletableOnClose(facts(undefined)), false);
+    assert.equal(R.deletableOnClose({ space: here, root: "" }), false, "no root, nothing under it");
+  });
+
+  test("another space open in the same worktree keeps it: git's top, or a folder there while git hasn't answered", () => {
+    const why = "another space is open in it";
+    assert.equal(R.keptOnClose(facts(here, [{ machine: null, top, place: `${top}/src` }])), why, "same top");
+    assert.equal(R.keptOnClose(facts(here, [{ top, place: top }])), why, "no machine given: this computer");
+    assert.equal(R.keptOnClose(facts(here, [{ machine: null, top: null, place: top }])), why, "not placed yet, in its folder");
+    assert.equal(R.keptOnClose(facts(here, [{ machine: null, top: null, place: `${top}/` }])), why, "a folder written with a slash");
+    assert.equal(R.keptOnClose(facts(here, [{ machine: null, top: null, place: `${top}/src/app` }])), why, "not placed yet, under its folder");
+    assert.equal(R.keptOnClose(facts(here, [{ machine: null, top: `${top}/inner`, place: `${top}/inner` }])), why, "in a worktree inside it");
+    assert.equal(R.keptOnClose(facts(here, [{ machine: null, top: null, place: `${top}-2` }])), "", "a sibling sharing its prefix");
+    assert.equal(R.keptOnClose(facts(here, [{ machine: "vps", top, place: top }])), "", "the same path on another machine is another folder");
+    assert.equal(R.keptOnClose(facts(here, [null, {}, { machine: null }])), "", "nothing known of the others");
+  });
+});
+
 describe("the plan", () => {
   test("linked worktrees under the root, open or closed, dirty or clean; never the main checkout, a prunable one or one outside", async () => {
     const repo = t.repo();

@@ -10,7 +10,7 @@
 // the strip's count and the Files marks are. Key command `curfew-changes.open-<n>`: the n-th file.
 import { View, div } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input, Scrollbar } from "gpui-base";
-import { spaces, panes, focused, exec, watchFolder, theme, nextCommand } from "herdr";
+import { spaces, panes, focused, exec, watchFolder, layout, theme, nextCommand } from "herdr";
 import { parsePatch } from "./patch.js";
 import { markFile, commentOnly } from "./comments.js";
 import { READ, STATUS as STATUS_ARGS, MAX_UNTRACKED, MAX_FILES, diffFrom, readStatus } from "./base.js";
@@ -24,9 +24,20 @@ function secondary(t) {
 }
 
 const MONO = "Menlo";
+// The labels' font: a layout names its own with "label_font" in any block's props (sumi-work
+// does); without one they are Menlo, as in Curfew.
+const labelFont = () => {
+  const seek = (node) => {
+    const own = node?.content?.props?.label_font;
+    if (typeof own === "string" && own) return own;
+    for (const child of node?.children ?? []) { const found = seek(child); if (found) return found; }
+    return null;
+  };
+  try { return seek(layout()) ?? MONO; } catch { return MONO; }
+};
 // que's glyph tones (diff.ts): added good, modified neutral, deleted bad, untracked attention.
 const GLYPH = (f, t) => (f.fresh ? ["?", t.blocked] : f.status === "A" ? ["A", t.done] : f.status === "D" || f.status === "U" ? [f.status, t.ansi9] : ["M", t.idle]);
-const label = (t, text) => div().font_family(MONO).text_size(10).font_medium().text_color(secondary(t)).child(text);
+const label = (t, text) => div().font_family(labelFont()).text_size(10).font_medium().text_color(secondary(t)).child(text);
 
 function location() {
   const space = spaces().find((s) => s.active), f = focused();
@@ -151,7 +162,7 @@ export default class Changes extends View {
     const t = theme(), add = this.files.reduce((n, f) => n + f.add, 0), del = this.files.reduce((n, f) => n + f.del, 0);
     const enabled = Boolean(this.message.trim() && this.root && !this.busy && !this.loading);
     const shown = this.root ? shownDiff() : null;
-    const mono = (text, color) => div().flex_none().font_family(MONO).text_size(11).text_color(color).child(text);
+    const mono = (text, color) => div().flex_none().font_family(labelFont()).text_size(11).text_color(color).child(text);
     const sums = (f, el) => el.when(f.add > 0, (e) => e.child(mono(`+${f.add}`, t.done))).when(f.del > 0, (e) => e.child(mono(`−${f.del}`, t.ansi9)));
     return v_flex().id("changes").size_full().min_h(0).bg(t.chrome).text_color(t.foreground).text_size(13).track_focus(this.handle)
       .on_key_down((e, cx) => {
@@ -169,19 +180,19 @@ export default class Changes extends View {
           // que: the files where only comments changed come last, under one faint line lined up with the paths.
           const only = this.files.filter((x) => x.comments);
           const group = f.comments && !this.files[i - 1]?.comments
-            ? [div().h(22).flex_none().pl(30).flex().items_center().font_family(MONO).text_size(11).text_color(t.dim).truncate()
+            ? [div().h(22).flex_none().pl(30).flex().items_center().font_family(labelFont()).text_size(11).text_color(t.dim).truncate()
               .child(`comments only · ${only.length} file${only.length === 1 ? "" : "s"} · +${only.reduce((n, x) => n + x.add, 0)} −${only.reduce((n, x) => n + x.del, 0)}`)]
             : [];
           return [...group, sums(f, h_flex().id(`change-${f.path}`).h(28).flex_none().px(8).gap(8).items_center().rounded(4).cursor_pointer()
             .text_color(on ? t.foreground : t.muted).when(on, (e) => e.bg(t.selected)).when(!on, (e) => e.hover((s) => s.bg(t.hover)))
             .on_click(() => this.pick(f.path))
-            .child(div().w(14).flex_none().font_family(MONO).text_size(11).font_medium().text_color(tone).child(glyph))
+            .child(div().w(14).flex_none().font_family(labelFont()).text_size(11).font_medium().text_color(tone).child(glyph))
             .child(h_flex().flex_1().min_w(0).items_center().child(div().text_color(t.dim).truncate().child(parts.length ? parts.join("/") + "/" : "")).child(div().min_w(0).truncate().text_color(on ? t.foreground : t.muted).child(name))
               // que: an uncommitted file carries a 5px attention dot after its name.
               .when(Boolean(f.dirty), (e) => e.child(div().ml(6).size(5).flex_none().rounded_full().bg(t.blocked)).tooltip("uncommitted"))))];
         })).when(!this.files.length, (e) => e.child(div().px(12).py(12).text_size(12).text_color(t.dim).child(this.error || (this.loading ? "Loading changes…" : this.root ? "No changes." : "No folder.")))))
         .child(Scrollbar.vertical("changes-list").absolute().inset_0()))
-      .when(this.limited, el => el.child(div().px(12).py(4).font_family(MONO).text_size(11).text_color(t.dim).child("the first 1,000 changed files")))
+      .when(this.limited, el => el.child(div().px(12).py(4).font_family(labelFont()).text_size(11).text_color(t.dim).child("the first 1,000 changed files")))
       .when(Boolean(this.note), (e) => e.child(div().px(12).pb(8).text_size(11).text_color(t.ansi9).child(this.note)))
       .child(h_flex().flex_none().px(8).py(8).gap(6).border_t(1).border_color(t.border)
         .child(div().id("commit-message").flex_1().min_w(0).h(28).px(8).flex().items_center().rounded(2).bg(t.background).border_1().border_color(this.typing ? t.accent : t.border).cursor_text().on_mouse_down("left", (_e, cx) => cx.stop_propagation()).child(Input.new(this.input).h_full().font_family(MONO).text_size(12).text_color(t.foreground)))

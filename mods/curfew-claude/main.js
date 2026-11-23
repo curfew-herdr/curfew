@@ -5,7 +5,7 @@
 // with `herdr-app do mod.open '{"name":"curfew-claude"}'`; no layout shows it.
 import { View, div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, appHome, home, readTextFile } from "herdr";
+import { layout, theme, appHome, home, readTextFile } from "herdr";
 import * as fs from "fs/promises";
 
 // que's --fg-secondary (#c9c9c9) lies between foreground and muted; the theme has no name for it.
@@ -16,6 +16,17 @@ function secondary(t) {
 }
 
 const MONO = "Menlo";
+// The labels' font: a layout names its own with "label_font" in any block's props (sumi-work
+// does); without one they are Menlo, as in Curfew.
+const labelFont = () => {
+  const seek = (node) => {
+    const own = node?.content?.props?.label_font;
+    if (typeof own === "string" && own) return own;
+    for (const child of node?.children ?? []) { const found = seek(child); if (found) return found; }
+    return null;
+  };
+  try { return seek(layout()) ?? MONO; } catch { return MONO; }
+};
 const DIR = () => `${appHome()}/mods/curfew-claude`;
 const DATA = () => `${appHome()}/curfew`;
 const hhmm = (ms) => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
@@ -50,7 +61,7 @@ export default class CurfewClaude extends View {
       .child(div().w(104).flex_none().text_color(t.dim).child(label))
       .child(div().flex_1().min_w(0).text_color(on ? t.foreground : t.muted).child(value));
     return v_flex().id("curfew-claude").size_full().bg(t.popover).px(14).py(12).gap(7)
-      .font_family(MONO).text_size(11).text_color(t.foreground)
+      .font_family(labelFont()).text_size(11).text_color(t.foreground)
       .child(div().text_size(10).font_medium().text_color(secondary(t)).child("CLAUDE LAUNCHER"))
       .children(!f ? [div().text_color(t.dim).child("Reading…")] : [
         row("launcher", f.launcher ? `sh ${DIR()}/claude` : "missing", f.launcher),
