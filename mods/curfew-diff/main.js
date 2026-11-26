@@ -25,7 +25,7 @@
 // starts open, as que shows every line comment.
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, Scrollbar, v_virtual_list, VirtualListScrollHandle } from "gpui-base";
-import { props, exec, watchFolder, theme, shared, setShared } from "herdr";
+import { props, exec, watchFolder, theme, shared, setShared, settings } from "herdr";
 import * as M from "./model.js";
 import { tokenize, extOf } from "./highlight.js";
 import { wordChanges, splitTokens, wrapTokens, Memo } from "./vendor.js";
@@ -231,12 +231,17 @@ export default class CurfewDiff extends View {
   // ---- state changes -----------------------------------------------------------------------
 
   // What the rows depend on that another tab can change (shared choices).
-  buildKey() { return JSON.stringify([this.pref("view"), this.pref("wrap"), this.commentView()]); }
+  buildKey() { return JSON.stringify([this.pref("view"), this.pref("wrap"), this.commentView(), this.zoom()]); }
+
+  // on_size_change reports the list's width in window px, which the person's zoom scales; the rows
+  // are laid out in the px written here (CHAR_W, the gutters), so the width is divided by the zoom.
+  // Without that, a zoom above 1 wraps lines past the right edge.
+  zoom() { return Number(settings()?.zoom) || 1; }
 
   rebuild() {
     this.builtKey = this.buildKey();
     this.built = M.buildRows(this.file ? [this.file] : [], {
-      mode: this.pref("view"), width: Math.max(200, this.width - 10), wrap: this.pref("wrap"), placed: this.placed,
+      mode: this.pref("view"), width: Math.max(200, this.width / this.zoom() - 10), wrap: this.pref("wrap"), placed: this.placed,
       hide: this.hide, only: this.only, closedThreads: this.closedThreads, header: false,
       ignoredWhitespace: this.kind === "changes" && this.loadedWs === "ignore",
       comments: this.commentView(), openRuns: this.openRuns,
