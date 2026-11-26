@@ -49,10 +49,16 @@ const key = () => JSON.stringify(location());
 const STATUS = { added: "A", deleted: "D", modified: "M", renamed: "M" };
 // A file's diff tab: the worktree's file against the base.
 const diffProps = (root, path, on) => ({ kind: "changes", folder: root, file: path, ...(on ? { on } : {}) });
+// How long a refresh may stay out before another may start beside it. One that never comes back
+// (it has happened: the list sat on one worktree's files overnight, every later refresh turned
+// away by the one still out) would otherwise hold the list for good.
+const GIVE_UP = 60000;
 
 export default class Changes extends View {
   init(_props, cx) {
     this.files = []; this.message = ""; this.handle = cx.focus_handle();
+    // The refresh that is out ({ n, at }), how many were started, and the n of the last one shown.
+    this.run = null; this.count = 0; this.shown = 0;
     this.input = InputState.new({ placeholder: "Commit message" });
     this.input.on("change", (_e, cx) => {
       const hadMessage = Boolean(this.message.trim());
@@ -88,19 +94,25 @@ export default class Changes extends View {
   }
 
   refresh(cx) {
-    if (this.loading || this.busy) return;
+    if (this.busy) return;
     const { cwd, on } = location(), context = key();
     if (context !== this.context) {
       this.context = context; this.root = null; this.files = [];
       this.message = ""; this.input.set_value(""); this.error = null; this.note = null; this.watched = null; this.limited = false;
+      this.run = null; // the last place's refresh no longer counts: this place's starts beside it
     }
     if (!cwd) return;
-    this.loading = true;
+    // One at a time, unless the one out has been out too long to wait for.
+    if (this.run && Date.now() - this.run.at < GIVE_UP) return;
+    const run = this.run = { n: ++this.count, at: Date.now() };
+    // Shown only for the place still shown, and only if no refresh started after it already was
+    // (one given up on may still come back, late).
+    const mine = () => this.context === context && key() === context && run.n > this.shown;
     cx.spawn(async (cx) => {
       try {
         const top = await exec("git", ["rev-parse", "--show-toplevel"], { cwd, on });
-        if (key() !== context) return;
-        if (top.code !== 0) { this.root = null; this.files = []; this.error = "Not a git repository"; return; }
+        if (!mine()) return;
+        if (top.code !== 0) { this.shown = run.n; this.root = null; this.files = []; this.error = "Not a git repository"; return; }
         const root = top.stdout.trim(), git = (args) => exec("git", [...READ, ...args], { cwd: root, on });
         const status = await git(STATUS_ARGS);
         if (status.code !== 0) throw new Error(status.stderr);
@@ -111,6 +123,7 @@ export default class Changes extends View {
         // Untracked files are all added, as que's diff has them; their text says whether they are comments only.
         let untracked = "";
         for (const path of fresh.slice(0, MAX_UNTRACKED)) {
+          if (!mine()) return;
           const r = await git(["diff", "--no-index", "--no-color", "--no-ext-diff", "--", "/dev/null", path]);
           if (r.code <= 1 && r.stdout) untracked += (untracked && !untracked.endsWith("\n") ? "\n" : "") + r.stdout;
         }
@@ -126,11 +139,11 @@ export default class Changes extends View {
         files.sort((a, b) => Number(a.comments) - Number(b.comments));
         const limited = files.length > MAX_FILES;
         files.length = Math.min(files.length, MAX_FILES);
-        if (key() !== context) return;
-        this.root = root; this.on = on; this.files = files; this.limited = limited; this.error = null;
+        if (!mine()) return;
+        this.shown = run.n; this.root = root; this.on = on; this.files = files; this.limited = limited; this.error = null;
         this.watch(root, cx);
-      } catch (e) { if (key() === context) this.error = String(e); }
-      finally { this.loading = false; cx.notify(); }
+      } catch (e) { if (mine()) this.error = String(e); }
+      finally { if (this.run === run) this.run = null; cx.notify(); }
     });
   }
 
@@ -139,7 +152,7 @@ export default class Changes extends View {
   }
 
   commit(cx) {
-    if (!this.message.trim() || !this.root || this.busy || this.loading || this.context !== key()) return;
+    if (!this.message.trim() || !this.root || this.busy || this.run || this.context !== key()) return;
     const root = this.root, on = this.on, context = this.context, message = this.message.trim();
     this.busy = true; this.note = null;
     cx.spawn(async (cx) => {
@@ -160,7 +173,7 @@ export default class Changes extends View {
     settle();
     if (key() !== this.context) this.refresh(cx);
     const t = theme(), add = this.files.reduce((n, f) => n + f.add, 0), del = this.files.reduce((n, f) => n + f.del, 0);
-    const enabled = Boolean(this.message.trim() && this.root && !this.busy && !this.loading);
+    const enabled = Boolean(this.message.trim() && this.root && !this.busy && !this.run);
     const shown = this.root ? shownDiff() : null;
     const mono = (text, color) => div().flex_none().font_family(labelFont()).text_size(11).text_color(color).child(text);
     const sums = (f, el) => el.when(f.add > 0, (e) => e.child(mono(`+${f.add}`, t.done))).when(f.del > 0, (e) => e.child(mono(`−${f.del}`, t.ansi9)));
@@ -190,7 +203,7 @@ export default class Changes extends View {
             .child(h_flex().flex_1().min_w(0).items_center().child(div().text_color(t.dim).truncate().child(parts.length ? parts.join("/") + "/" : "")).child(div().min_w(0).truncate().text_color(on ? t.foreground : t.muted).child(name))
               // que: an uncommitted file carries a 5px attention dot after its name.
               .when(Boolean(f.dirty), (e) => e.child(div().ml(6).size(5).flex_none().rounded_full().bg(t.blocked)).tooltip("uncommitted"))))];
-        })).when(!this.files.length, (e) => e.child(div().px(12).py(12).text_size(12).text_color(t.dim).child(this.error || (this.loading ? "Loading changes…" : this.root ? "No changes." : "No folder.")))))
+        })).when(!this.files.length, (e) => e.child(div().px(12).py(12).text_size(12).text_color(t.dim).child(this.error || (this.run ? "Loading changes…" : this.root ? "No changes." : "No folder.")))))
         .child(Scrollbar.vertical("changes-list").absolute().inset_0()))
       .when(this.limited, el => el.child(div().px(12).py(4).font_family(labelFont()).text_size(11).text_color(t.dim).child("the first 1,000 changed files")))
       .when(Boolean(this.note), (e) => e.child(div().px(12).pb(8).text_size(11).text_color(t.ansi9).child(this.note)))
